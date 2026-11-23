@@ -119,7 +119,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately as desc
 
 No licence has been chosen for this repository yet. Until one is added, the default applies: **all rights reserved** by the author (anveshix). Please ask before reusing or redistributing the code.
 
-The portable build bundles third-party dependencies, which keep their own licences.
+Third-party libraries keep their own licences (all MIT). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Author
 
