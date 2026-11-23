@@ -25,4 +25,4 @@ Thanks for your interest! Small, focused contributions are the easiest to review
 
 Open an issue using the templates in `.github/ISSUE_TEMPLATE/`. For security problems, see [SECURITY.md](SECURITY.md) — do **not** open a public issue.
 
-By contributing you agree that your contribution is licensed under the project's [MIT License](LICENSE).
+By contributing you agree that your contribution may be licensed under the same terms as this repository, once the maintainer has chosen them (see the README *License* section).
