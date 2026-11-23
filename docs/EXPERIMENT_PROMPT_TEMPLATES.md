@@ -1,7 +1,7 @@
 # Experiment-Panel Prompt Templates
 
 Reusable prompts for briefing a developer (human or AI) to build a new
-simulation panel in this lab. Every panel must satisfy `HANDOVER.md` §0: the
+simulation panel in this lab. Every panel must satisfy `docs/HANDOVER.md` §0: the
 physics model is the single source of truth, controls drive real recomputation,
 and no reading, needle, or graph is hard-coded or scripted.
 
