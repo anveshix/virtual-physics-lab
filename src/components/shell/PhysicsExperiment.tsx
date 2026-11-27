@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type ReactNode } from 'react';
+import { useCallback, useMemo, type ReactNode } from "react";
 import type {
   EducationPack,
   ExperimentDefinition,
@@ -6,14 +6,14 @@ import type {
   NotebookSpec,
   ParamValues,
   Readout,
-  ValidationIssue
-} from '@/types/lab';
-import type { StageApi } from '@/components/controls/StageKit';
-import type { ObservationRow } from '@/types/lab';
-import { useLabState } from '@/hooks/useLabState';
-import { useNotebook } from '@/hooks/useNotebook';
-import { SimulatorShell } from '@/components/shell/SimulatorShell';
-import type { CanvasScene } from '@/lab/canvas';
+  ValidationIssue,
+} from "@/types/lab";
+import type { StageApi } from "@/components/controls/StageKit";
+import type { ObservationRow } from "@/types/lab";
+import { useLabState } from "@/hooks/useLabState";
+import { useNotebook } from "@/hooks/useNotebook";
+import { SimulatorShell } from "@/components/shell/SimulatorShell";
+import type { CanvasScene } from "@/lab/canvas";
 
 /** Everything `compute` gives back. The view never invents any of it. */
 export interface ModelOutput {
@@ -56,7 +56,7 @@ export function PhysicsExperiment({
   renderStage,
   notebook,
   viewportOverlay,
-  scene
+  scene,
 }: PhysicsExperimentProps) {
   const lab = useLabState(definition);
   const book = useNotebook(definition.slug);
@@ -66,12 +66,12 @@ export function PhysicsExperiment({
 
   const stageApi = useMemo<StageApi>(
     () => ({ params: lab.params, set: lab.set, control: lab.control }),
-    [lab.params, lab.set, lab.control]
+    [lab.params, lab.set, lab.control],
   );
 
   const notebookSpec = useMemo(
     () => notebook?.({ params: lab.params, model, rows: book.rows }),
-    [notebook, lab.params, model, book.rows]
+    [notebook, lab.params, model, book.rows],
   );
 
   /**
@@ -83,18 +83,24 @@ export function PhysicsExperiment({
   const settingsSnapshot = useCallback(
     () =>
       definition.controls
-        .filter((c) => c.kind === 'slider' || c.kind === 'toggle' || c.kind === 'select' || c.kind === 'segmented')
+        .filter(
+          (c) =>
+            c.kind === "slider" ||
+            c.kind === "toggle" ||
+            c.kind === "select" ||
+            c.kind === "segmented",
+        )
         .map((c) => {
           const v = lab.params[c.key];
-          const shown = typeof v === 'number' ? Number(v.toFixed(4)) : v;
+          const shown = typeof v === "number" ? Number(v.toFixed(4)) : v;
           // A netlist is long and is not a setting a student reads back.
-          if (typeof shown === 'string' && shown.length > 24) return null;
-          const unit = 'unit' in c && c.unit ? ` ${c.unit}` : '';
+          if (typeof shown === "string" && shown.length > 24) return null;
+          const unit = "unit" in c && c.unit ? ` ${c.unit}` : "";
           return `${c.label} ${shown}${unit}`;
         })
         .filter((x): x is string => x !== null)
-        .join('; '),
-    [definition.controls, lab.params]
+        .join("; "),
+    [definition.controls, lab.params],
   );
 
   const onRecord = useCallback(() => {

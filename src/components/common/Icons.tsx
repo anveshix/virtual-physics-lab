@@ -1,19 +1,19 @@
-import type { SVGProps } from 'react';
+import type { SVGProps } from "react";
 
 type IconProps = SVGProps<SVGSVGElement>;
 
 const base = (props: IconProps) => ({
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
   strokeWidth: 1.8,
-  strokeLinecap: 'round' as const,
-  strokeLinejoin: 'round' as const,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
   width: 16,
   height: 16,
-  'aria-hidden': true,
+  "aria-hidden": true,
   focusable: false,
-  ...props
+  ...props,
 });
 
 /** Line icons drawn inline so the portable build needs no icon font. */
@@ -150,7 +150,13 @@ export const Icons = {
       <circle cx="12" cy="12" r="9" />
       <path d="M10 8.5v7M14 8.5v7" />
     </svg>
-  )
+  ),
+  Contrast: (p: IconProps) => (
+    <svg {...base(p)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" />
+    </svg>
+  ),
 } as const;
 
 export type IconName = keyof typeof Icons;

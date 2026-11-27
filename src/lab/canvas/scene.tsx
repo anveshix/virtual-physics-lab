@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { ParamValues } from "@/types/lab";
 import type { ModelOutput } from "@/components/shell/PhysicsExperiment";
 import { CanvasStage } from "./CanvasStage";
@@ -136,18 +136,45 @@ export type SceneChildren = ReactNode;
 /**
  * What the animation is, one tap away rather than printed across the
  * apparatus. Every scene still states it — the honesty is unchanged — but the
- * bench stays clear for the experiment.
+ * bench stays clear for the experiment. A real button, so it opens by tap on a
+ * phone (hover never happens there), by Enter or Space from the keyboard, and
+ * closes with Escape, a second tap, or a tap anywhere else.
  */
 export function SceneNote({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const id = useId();
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    const onDown = (e: PointerEvent): void => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onDown);
+    };
+  }, [open]);
   return (
-    <span
-      className="scene-note"
-      tabIndex={0}
-      role="note"
-      aria-label={`About this animation: ${text}`}
-      data-tip={text}
-    >
-      <span aria-hidden="true">i</span>
+    <span ref={ref} className={`scene-note${open ? " is-open" : ""}`}>
+      <button
+        type="button"
+        className="scene-note-btn"
+        aria-expanded={open}
+        aria-controls={id}
+        aria-label="About this animation"
+        title="About this animation"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span aria-hidden="true">i</span>
+      </button>
+      <span id={id} role="note" className="scene-note-pop" hidden={!open}>
+        {text}
+      </span>
     </span>
   );
 }

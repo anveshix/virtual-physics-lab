@@ -105,7 +105,8 @@ export interface AuroraBackdropProps {
 /**
  * The fixed WebGL backdrop behind every page. Rendered at half resolution
  * (soft clouds lose nothing) and at most 30 frames a second, paused while the
- * tab is hidden, and frozen when motion is off. Without WebGL the element's
+ * tab is hidden or the page is scrolling, frozen when motion is off, and
+ * stepped down — quarter resolution, then a still — on a slow device. Without WebGL the element's
  * CSS gradient is the backdrop.
  */
 export function AuroraBackdrop({ frozen = false }: AuroraBackdropProps) {
@@ -148,10 +149,11 @@ export function AuroraBackdrop({ frozen = false }: AuroraBackdropProps) {
     });
     const mesh = new Mesh(gl, { geometry: new Triangle(gl), program });
 
-    const SCALE = 0.5;
+    // Resolution steps down on a device that cannot keep up (see `frame`).
+    let scale = 0.5;
     const resize = (): void => {
-      const w = Math.max(1, Math.round(window.innerWidth * SCALE));
-      const h = Math.max(1, Math.round(window.innerHeight * SCALE));
+      const w = Math.max(1, Math.round(window.innerWidth * scale));
+      const h = Math.max(1, Math.round(window.innerHeight * scale));
       renderer.setSize(w, h);
       program.uniforms.uRes.value = [w, h];
       canvas.style.width = "100%";
@@ -171,9 +173,39 @@ export function AuroraBackdrop({ frozen = false }: AuroraBackdropProps) {
     let last = 0;
     let time = 12;
     let running = false;
+    // The backdrop must never cost the page its frame rate. Two guards:
+    //  · while the page scrolls it holds still (scrolling is where jank shows);
+    //  · it watches the page's own frame interval, and on a device that cannot
+    //    hold ~24 fps it drops to quarter resolution, then to a still image.
+    let holdUntil = 0;
+    let prevTick = 0;
+    let slowMs = 0;
+    let budget: "full" | "low" | "still" = "full";
+    const onScroll = (): void => {
+      holdUntil = performance.now() + 220;
+    };
     const frame = (now: number): void => {
       raf = 0;
-      const animate = motionAllowed() && !frozenRef.current && !document.hidden;
+      const gap = prevTick ? now - prevTick : 16;
+      prevTick = now;
+      slowMs = gap > 42 ? slowMs + gap : Math.max(0, slowMs - gap * 2);
+      if (slowMs > 1000 && budget !== "still") {
+        slowMs = 0;
+        budget = budget === "full" ? "low" : "still";
+        if (budget === "low") {
+          scale = 0.25;
+          resize();
+        }
+      }
+      const animate =
+        motionAllowed() &&
+        !frozenRef.current &&
+        !document.hidden &&
+        budget !== "still";
+      if (animate && now < holdUntil) {
+        raf = requestAnimationFrame(frame);
+        return;
+      }
       const dt = last ? Math.min((now - last) / 1000, 0.1) : 0;
       if (animate && dt < 1 / 32 && last) {
         raf = requestAnimationFrame(frame);
@@ -193,6 +225,7 @@ export function AuroraBackdrop({ frozen = false }: AuroraBackdropProps) {
       if (raf) return;
       running = true;
       last = 0;
+      prevTick = 0;
       raf = requestAnimationFrame(frame);
     };
     kick.current = start;
@@ -207,6 +240,7 @@ export function AuroraBackdrop({ frozen = false }: AuroraBackdropProps) {
     };
     window.addEventListener("resize", onResize);
     window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("visibilitychange", onVisible);
     // The Motion switch flips an attribute on <html>; resume when it does.
     const mo = new MutationObserver(() => start());
@@ -220,6 +254,7 @@ export function AuroraBackdrop({ frozen = false }: AuroraBackdropProps) {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("scroll", onScroll);
       document.removeEventListener("visibilitychange", onVisible);
       mo.disconnect();
       kick.current = () => undefined;

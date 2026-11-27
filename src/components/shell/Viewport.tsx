@@ -1,4 +1,18 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+
+/**
+ * The caption a screen reader hears, settled: while a slider is being dragged
+ * the model's sentence changes every step, and announcing each one would bury
+ * the student in speech. It is spoken once the hand stops.
+ */
+function useSettled(text: string | undefined, ms = 700): string | undefined {
+  const [settled, setSettled] = useState(text);
+  useEffect(() => {
+    const id = window.setTimeout(() => setSettled(text), ms);
+    return () => window.clearTimeout(id);
+  }, [text, ms]);
+  return settled;
+}
 
 /**
  * Shared SVG gradients, filters and markers. Every stage drops `<SvgDefs/>` in
@@ -121,6 +135,7 @@ export function Viewport({
   caption,
   canvas,
 }: ViewportProps) {
+  const spoken = useSettled(caption);
   return (
     <div className="viewport">
       <div className="viewport-bezel">
@@ -134,7 +149,7 @@ export function Viewport({
           second copy of what the readouts already show. */}
       {caption ? (
         <p className="viewport-caption sr-only" aria-live="polite">
-          {caption}
+          {spoken}
         </p>
       ) : null}
     </div>

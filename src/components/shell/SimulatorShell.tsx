@@ -1,9 +1,19 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import { useMedia } from "@/lab/fx/media";
+import { motionAllowed } from "@/lab/fx/motion";
 import { Link } from "react-router-dom";
 import type {
   EducationPack,
   ExperimentDefinition,
   NotebookSpec,
+  Readout,
   SliderControl,
 } from "@/types/lab";
 import type { ModelOutput } from "@/components/shell/PhysicsExperiment";
@@ -59,6 +69,42 @@ export interface SimulatorShellProps {
   onClearNotebook: () => void;
 }
 
+/**
+ * One measurement. When its value changes it gives a short glow — so while a
+ * student drags a control, exactly the readings that depend on it light up:
+ * cause and effect, shown rather than told. Skipped when motion is reduced.
+ */
+function ReadoutCell({ r }: { r: Readout }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const text = r.text ?? formatDisplay(r.value, r.precision);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const el = ref.current;
+    if (!el || typeof el.animate !== "function" || !motionAllowed()) return;
+    el.animate(
+      [
+        { outlineColor: "rgba(124, 247, 212, 0.75)" },
+        { outlineColor: "rgba(124, 247, 212, 0)" },
+      ],
+      { duration: 650, easing: "ease-out" },
+    );
+  }, [text]);
+  return (
+    <div ref={ref} className={`readout-cell tone-${r.tone ?? "normal"}`}>
+      <span className="readout-label">{r.label}</span>
+      <span className="readout">
+        {text}
+        {r.unit && !NO_UNIT.has(r.unit.trim()) ? <i> {r.unit}</i> : null}
+      </span>
+      {r.sub ? <span className="readout-sub">{r.sub}</span> : null}
+    </div>
+  );
+}
+
 /** Placeholder "units" for pure numbers: shown as nothing rather than a dash. */
 const NO_UNIT = new Set(["", "-", "–", "—", "×"]);
 
@@ -91,6 +137,20 @@ export function SimulatorShell({
         (c) => !c.onStage && !("stage" in c && c.stage),
       ),
     [definition.controls],
+  );
+
+  // On a phone the apparatus is drawn small, so its knobs are small too. The
+  // same controls are offered again as full-width native sliders beneath it,
+  // bound to the same state — the stage still works; this is the thumb path.
+  const phone = useMedia("(max-width: 720px)");
+  const phoneControls = useMemo(
+    () =>
+      phone
+        ? definition.controls.filter(
+            (c) => c.onStage || ("stage" in c && c.stage),
+          )
+        : [],
+    [phone, definition.controls],
   );
 
   const issues = model.issues ?? [];
@@ -165,9 +225,9 @@ export function SimulatorShell({
             </ul>
           ) : null}
 
-          {dockControls.length > 0 ? (
+          {dockControls.length > 0 || phoneControls.length > 0 ? (
             <Controls
-              specs={dockControls}
+              specs={[...phoneControls, ...dockControls]}
               params={lab.params}
               onChange={lab.set}
             />
@@ -183,19 +243,7 @@ export function SimulatorShell({
             </header>
             <div className="panel-body readout-grid">
               {model.readouts.map((r) => (
-                <div
-                  key={r.key}
-                  className={`readout-cell tone-${r.tone ?? "normal"}`}
-                >
-                  <span className="readout-label">{r.label}</span>
-                  <span className="readout">
-                    {r.text ?? formatDisplay(r.value, r.precision)}
-                    {r.unit && !NO_UNIT.has(r.unit.trim()) ? (
-                      <i> {r.unit}</i>
-                    ) : null}
-                  </span>
-                  {r.sub ? <span className="readout-sub">{r.sub}</span> : null}
-                </div>
+                <ReadoutCell key={r.key} r={r} />
               ))}
             </div>
           </section>

@@ -67,7 +67,8 @@ export function AppLayout({ children }: { children?: ReactNode }) {
 
   return (
     <div className={`app${onExperiment ? " is-experiment" : ""}`}>
-      {onExperiment ? null : <AuroraBackdrop />}
+      {/* High contrast means nothing glowing behind the text, either. */}
+      {onExperiment || prefs.contrast ? null : <AuroraBackdrop />}
       <a className="skip-link" href="#main">
         Skip to content
       </a>
@@ -129,6 +130,20 @@ export function AppLayout({ children }: { children?: ReactNode }) {
               ) : (
                 <Icons.SpeakerMute width={15} height={15} />
               )}
+            </button>
+            <button
+              type="button"
+              className="hbtn"
+              aria-pressed={prefs.contrast}
+              aria-label={
+                prefs.contrast
+                  ? "High contrast on — press for the standard look"
+                  : "High contrast off — press for bright rooms and projectors"
+              }
+              title={prefs.contrast ? "High contrast on" : "High contrast off"}
+              onClick={() => prefs.setContrast(!prefs.contrast)}
+            >
+              <Icons.Contrast width={15} height={15} />
             </button>
             <button
               type="button"

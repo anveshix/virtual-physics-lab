@@ -121,7 +121,7 @@ export function FieldHero({ fallback, legend }: FieldHeroProps) {
     let renderer: Renderer;
     try {
       renderer = new Renderer({
-        dpr: Math.min(window.devicePixelRatio || 1, 2),
+        dpr: Math.min(window.devicePixelRatio || 1, 1.5),
         alpha: false,
         antialias: false,
         depth: false,
@@ -173,17 +173,27 @@ export function FieldHero({ fallback, legend }: FieldHeroProps) {
     let raf = 0;
     let visible = true;
     const t0 = performance.now();
+    // On a device that cannot keep the page above ~24 fps the dashes stop
+    // flowing; the field still redraws at once whenever a charge moves.
+    let prevTick = 0;
+    let slowMs = 0;
+    let still = false;
     const draw = (now: number): void => {
       raf = 0;
+      const gap = prevTick ? now - prevTick : 16;
+      prevTick = now;
+      slowMs = gap > 42 ? slowMs + gap : Math.max(0, slowMs - gap * 2);
+      if (slowMs > 1000) still = true;
       program.uniforms.uQ.value = chargesRef.current.map((c) => [
         c.x,
         c.y,
         c.q,
       ]);
-      const moving = motionAllowed() && visible && !document.hidden;
+      const moving = motionAllowed() && visible && !document.hidden && !still;
       program.uniforms.uTime.value = moving ? (now - t0) / 1000 : 0;
       renderer.render({ scene: mesh });
       if (moving) raf = requestAnimationFrame(draw);
+      else prevTick = 0;
     };
     const kick = (): void => {
       if (!raf) raf = requestAnimationFrame(draw);
@@ -263,8 +273,10 @@ export function FieldHero({ fallback, legend }: FieldHeroProps) {
       const rect = el.getBoundingClientRect();
       const start = { x: e.clientX, y: e.clientY };
       let dragged = false;
+      // A fingertip wobbles more than a mouse: a tap stays a tap.
+      const slop = e.pointerType === "touch" ? 9 : 4;
       const onMove = (ev: PointerEvent): void => {
-        if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) > 4)
+        if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) > slop)
           dragged = true;
         if (!dragged) return;
         move(
@@ -276,10 +288,18 @@ export function FieldHero({ fallback, legend }: FieldHeroProps) {
       const onUp = (): void => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onCancel);
         if (!dragged) flip(i);
+      };
+      // The browser took the gesture (e.g. a system swipe): no flip, no jump.
+      const onCancel = (): void => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onCancel);
       };
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
+      window.addEventListener("pointercancel", onCancel);
     };
 
   const onKey = (i: number) => (e: KeyboardEvent<HTMLButtonElement>) => {
