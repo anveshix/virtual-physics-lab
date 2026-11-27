@@ -1,32 +1,29 @@
-import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { documentTitle } from '@/app/branding/brand';
-import { Icons } from '@/components/common/Icons';
+import { useEffect } from "react";
+import { Link } from "react-router-dom";
+import { documentTitle } from "@/app/branding/brand";
+import { Icons } from "@/components/common/Icons";
+import { ExperimentGlyph } from "@/lab/fx/glyphs";
 
 export default function NotFoundPage() {
   useEffect(() => {
-    document.title = documentTitle('Page not found');
+    document.title = documentTitle("Page not found");
   }, []);
   return (
     <div className="page">
-      <div className="panel" style={{ maxWidth: 620, marginInline: 'auto' }}>
-        <div className="panel-body stack" style={{ textAlign: 'center', padding: 'var(--sp-7)' }}>
-          <span style={{ color: 'var(--ink-4)', display: 'inline-grid', placeItems: 'center' }}>
-            <Icons.Compass width={34} height={34} />
-          </span>
-          <h1 style={{ fontSize: '1.6rem' }}>No apparatus on this bench</h1>
-          <p className="muted">
-            That route does not exist. The catalogue has every experiment with a stable URL — try searching from
-            there.
-          </p>
-          <div className="row" style={{ justifyContent: 'center' }}>
-            <Link to="/simulators" className="btn btn-primary btn-sm">
-              Simulator index
-            </Link>
-            <Link to="/class-12" className="btn btn-ghost btn-sm">
-              Class XII units
-            </Link>
-          </div>
+      <div className="lost glass">
+        <span className="lost-art" aria-hidden="true">
+          <ExperimentGlyph slug="total-internal-reflection" accent="#3ee6ff" />
+        </span>
+        <p className="lost-code">404</p>
+        <h1>No apparatus on this bench</h1>
+        <p className="lede">This page does not exist.</p>
+        <div className="lost-actions">
+          <Link to="/simulators" className="btn btn-primary">
+            All experiments <Icons.ChevronRight width={14} height={14} />
+          </Link>
+          <Link to="/" className="btn">
+            Home
+          </Link>
         </div>
       </div>
     </div>

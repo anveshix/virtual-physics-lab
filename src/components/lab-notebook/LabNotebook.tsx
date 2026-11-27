@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react';
-import type { NotebookSpec } from '@/types/lab';
-import type { NotebookRow } from '@/hooks/useNotebook';
-import { formatFixed, percentError } from '@/utils/format';
-import { Icons } from '@/components/common/Icons';
-import { EmptyState } from '@/components/common/UI';
-import { downloadCsv, notebookCsv } from './csv';
+import { useMemo, useState } from "react";
+import type { NotebookSpec } from "@/types/lab";
+import type { NotebookRow } from "@/hooks/useNotebook";
+import { formatFixed, percentError } from "@/utils/format";
+import { Icons } from "@/components/common/Icons";
+import { EmptyState } from "@/components/common/UI";
+import { downloadCsv, notebookCsv } from "./csv";
 
 export interface LabNotebookProps {
   spec: NotebookSpec;
@@ -23,7 +23,12 @@ export interface LabNotebookProps {
 
 /** Local time of a recorded trial, or an em dash for a row saved before 2.0. */
 const timeOf = (t: number): string =>
-  t ? new Date(t).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—';
+  t
+    ? new Date(t).toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "—";
 
 /**
  * The observation table. Rows are captured from the live model, derived columns
@@ -40,18 +45,20 @@ export function LabNotebook({
   onRemove,
   onAnnotate,
   onConclusion,
-  onClear
+  onClear,
 }: LabNotebookProps) {
   // Set when a browser refuses the download — some file:// sandboxes do — so
   // the student is offered the text to copy instead of nothing happening.
   const [fallbackCsv, setFallbackCsv] = useState<string | null>(null);
   const derived = useMemo<NotebookRow[]>(
     () => rows.map((r) => ({ ...r, ...(spec.derive ? spec.derive(r) : r) })),
-    [rows, spec]
+    [rows, spec],
   );
 
   const comparison = spec.comparison;
-  const meanError = comparison ? percentError(comparison.experimental, comparison.theoretical) : Number.NaN;
+  const meanError = comparison
+    ? percentError(comparison.experimental, comparison.theoretical)
+    : Number.NaN;
   const canRecord = spec.captureEnabled ?? true;
 
   return (
@@ -61,7 +68,13 @@ export function LabNotebook({
           <Icons.Notebook width={15} height={15} /> Lab notebook
         </h2>
         <div className="row">
-          <button type="button" className="btn btn-sm btn-primary" onClick={onRecord} disabled={!canRecord}>
+          <button
+            type="button"
+            className="btn btn-sm btn-primary"
+            onClick={onRecord}
+            disabled={!canRecord}
+            aria-describedby={spec.captureHint ? "notebook-hint" : undefined}
+          >
             <Icons.Plus width={13} height={13} /> Record reading
           </button>
           <button
@@ -69,13 +82,26 @@ export function LabNotebook({
             className="btn btn-sm btn-ghost"
             disabled={rows.length === 0}
             onClick={() => {
-              const csv = notebookCsv({ title, spec, rows, conclusion, comparison });
-              setFallbackCsv(downloadCsv(`${slug}-observations.csv`, csv) ? null : csv);
+              const csv = notebookCsv({
+                title,
+                spec,
+                rows,
+                conclusion,
+                comparison,
+              });
+              setFallbackCsv(
+                downloadCsv(`${slug}-observations.csv`, csv) ? null : csv,
+              );
             }}
           >
             <Icons.Download width={13} height={13} /> Export CSV
           </button>
-          <button type="button" className="btn btn-sm btn-ghost" onClick={onClear} disabled={rows.length === 0}>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost"
+            onClick={onClear}
+            disabled={rows.length === 0}
+          >
             <Icons.Trash width={13} height={13} /> Clear
           </button>
         </div>
@@ -83,11 +109,23 @@ export function LabNotebook({
 
       <div className="panel-body">
         <p className="notebook-title">{spec.title}</p>
-        {spec.captureHint ? <p className="muted notebook-hint">{spec.captureHint}</p> : null}
+        {spec.captureHint ? (
+          // While recording is locked, the hint is what unlocks it: say so plainly.
+          <p
+            id="notebook-hint"
+            className={`muted notebook-hint${canRecord ? "" : " is-waiting"}`}
+          >
+            {canRecord ? null : (
+              <Icons.Warning width={13} height={13} aria-hidden="true" />
+            )}
+            {spec.captureHint}
+          </p>
+        ) : null}
 
         {derived.length === 0 ? (
           <EmptyState title="No trials recorded yet">
-            Set the apparatus, then press <b>Record reading</b> to add a row to the observation table.
+            Set the apparatus, then press <b>Record reading</b> to add a row to
+            the observation table.
           </EmptyState>
         ) : (
           <div className="table-scroll">
@@ -99,25 +137,38 @@ export function LabNotebook({
                   {spec.columns.map((c) => (
                     <th key={c.key} scope="col">
                       {c.label}
-                      {c.unit ? <span className="col-unit"> ({c.unit})</span> : null}
-                      {c.derived ? <span className="col-derived" title="Derived column"> ƒ</span> : null}
+                      {c.unit ? (
+                        <span className="col-unit"> ({c.unit})</span>
+                      ) : null}
+                      {c.derived ? (
+                        <span className="col-derived" title="Derived column">
+                          {" "}
+                          ƒ
+                        </span>
+                      ) : null}
                     </th>
                   ))}
                   <th scope="col">Note</th>
-                  <th scope="col"><span className="sr-only">Remove</span></th>
+                  <th scope="col">
+                    <span className="sr-only">Remove</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {derived.map((row) => (
                   <tr key={row.__n}>
-                    <td title={`Recorded at ${timeOf(row.__t)}${row.__settings ? ` · ${row.__settings}` : ''}`}>
+                    <td
+                      title={`Recorded at ${timeOf(row.__t)}${row.__settings ? ` · ${row.__settings}` : ""}`}
+                    >
                       {row.__n}
                     </td>
                     {spec.columns.map((c) => {
                       const v = row[c.key];
                       return (
                         <td key={c.key} className="readout">
-                          {typeof v === 'number' ? formatFixed(v, c.precision ?? 3) : (v ?? '—')}
+                          {typeof v === "number"
+                            ? formatFixed(v, c.precision ?? 3)
+                            : (v ?? "—")}
                         </td>
                       );
                     })}
@@ -153,19 +204,28 @@ export function LabNotebook({
             <div>
               <dt>Experimental {comparison.label}</dt>
               <dd className="readout">
-                {formatFixed(comparison.experimental, comparison.precision ?? 3)} {comparison.unit}
+                {formatFixed(
+                  comparison.experimental,
+                  comparison.precision ?? 3,
+                )}{" "}
+                {comparison.unit}
               </dd>
             </div>
             <div>
               <dt>Theoretical {comparison.label}</dt>
               <dd className="readout">
-                {formatFixed(comparison.theoretical, comparison.precision ?? 3)} {comparison.unit}
+                {formatFixed(comparison.theoretical, comparison.precision ?? 3)}{" "}
+                {comparison.unit}
               </dd>
             </div>
             <div>
               <dt>Percentage error</dt>
-              <dd className={`readout${Math.abs(meanError) > 5 ? ' is-alert' : ''}`}>
-                {Number.isFinite(meanError) ? `${meanError > 0 ? '+' : ''}${meanError.toFixed(2)} %` : '—'}
+              <dd
+                className={`readout${Math.abs(meanError) > 5 ? " is-alert" : ""}`}
+              >
+                {Number.isFinite(meanError)
+                  ? `${meanError > 0 ? "+" : ""}${meanError.toFixed(2)} %`
+                  : "—"}
               </dd>
             </div>
           </dl>
@@ -174,7 +234,8 @@ export function LabNotebook({
         {fallbackCsv !== null ? (
           <div className="notebook-fallback">
             <label htmlFor="csv-fallback">
-              This browser would not start the download. Select the text below and copy it.
+              This browser would not start the download. Select the text below
+              and copy it.
             </label>
             <textarea id="csv-fallback" readOnly rows={6} value={fallbackCsv} />
           </div>

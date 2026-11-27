@@ -1,15 +1,18 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { BrowserRouter, HashRouter } from 'react-router-dom';
-import { PreferencesProvider } from '@/app/providers/PreferencesProvider';
-import { AppRoutes } from '@/app/routes/AppRoutes';
-import '@/styles/lab.css';
-import '@/styles/lab-scene.css';
-import '@/styles/neumorphic.css';
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter, HashRouter } from "react-router-dom";
+import { PreferencesProvider } from "@/app/providers/PreferencesProvider";
+import { AppRoutes } from "@/app/routes/AppRoutes";
+import "@/styles/lab.css";
+import "@/styles/lab-scene.css";
+import "@fontsource-variable/inter";
+import "@fontsource-variable/space-grotesk";
+import "@fontsource-variable/jetbrains-mono";
+import "@/styles/glass.css";
 
 // The portable single-file build runs from file://, where only a hash router
 // can resolve routes. The same route table serves both.
-const isFile = window.location.protocol === 'file:';
+const isFile = window.location.protocol === "file:";
 const Router = isFile ? HashRouter : BrowserRouter;
 // The site is served under a subpath (GitHub Pages project page). Without this,
 // a direct link or a page refresh on any route but the home page 404s, because
@@ -17,15 +20,18 @@ const Router = isFile ? HashRouter : BrowserRouter;
 // that subpath. The portable file has no subpath to strip.
 const basename = isFile ? undefined : import.meta.env.BASE_URL;
 
-const host = document.getElementById('root');
-if (!host) throw new Error('Root element #root is missing from index.html');
+const host = document.getElementById("root");
+if (!host) throw new Error("Root element #root is missing from index.html");
 
 createRoot(host).render(
   <StrictMode>
     <PreferencesProvider>
-      <Router basename={basename} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <Router
+        basename={basename}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <AppRoutes />
       </Router>
     </PreferencesProvider>
-  </StrictMode>
+  </StrictMode>,
 );

@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
 /**
  * Shared SVG gradients, filters and markers. Every stage drops `<SvgDefs/>` in
@@ -34,13 +34,37 @@ export function SvgDefs() {
         <stop offset="0%" stopColor="#fff3c4" />
         <stop offset="100%" stopColor="#ffb454" stopOpacity="0" />
       </radialGradient>
-      <marker id="ray-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <marker
+        id="ray-head"
+        viewBox="0 0 10 10"
+        refX="8"
+        refY="5"
+        markerWidth="6"
+        markerHeight="6"
+        orient="auto-start-reverse"
+      >
         <path d="M0 0 L10 5 L0 10 z" fill="context-stroke" />
       </marker>
-      <marker id="ray-head-warm" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <marker
+        id="ray-head-warm"
+        viewBox="0 0 10 10"
+        refX="8"
+        refY="5"
+        markerWidth="6"
+        markerHeight="6"
+        orient="auto-start-reverse"
+      >
         <path d="M0 0 L10 5 L0 10 z" fill="#ffd257" />
       </marker>
-      <marker id="ray-head-cool" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <marker
+        id="ray-head-cool"
+        viewBox="0 0 10 10"
+        refX="8"
+        refY="5"
+        markerWidth="6"
+        markerHeight="6"
+        orient="auto-start-reverse"
+      >
         <path d="M0 0 L10 5 L0 10 z" fill="#6ee7ff" />
       </marker>
       <filter id="lab-glow" x="-40%" y="-40%" width="180%" height="180%">
@@ -55,7 +79,15 @@ export function SvgDefs() {
 }
 
 /** A live reading pinned over the apparatus — always fed by the model. */
-export function ViewPill({ label, value, unit }: { label: string; value: string; unit?: string }) {
+export function ViewPill({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+}) {
   return (
     <span className="view-pill">
       <b>{label}</b>
@@ -83,7 +115,12 @@ export interface ViewportProps {
 }
 
 /** The lit bench: bezel, backing board and the experiment SVG scaled to fill. */
-export function Viewport({ children, overlay, caption, canvas }: ViewportProps) {
+export function Viewport({
+  children,
+  overlay,
+  caption,
+  canvas,
+}: ViewportProps) {
   return (
     <div className="viewport">
       <div className="viewport-bezel">
@@ -93,7 +130,13 @@ export function Viewport({ children, overlay, caption, canvas }: ViewportProps) 
         </div>
         {overlay ? <div className="viewport-overlay">{overlay}</div> : null}
       </div>
-      {caption ? <p className="viewport-caption muted">{caption}</p> : null}
+      {/* The model's own sentence about the scene: for screen readers, not a
+          second copy of what the readouts already show. */}
+      {caption ? (
+        <p className="viewport-caption sr-only" aria-live="polite">
+          {caption}
+        </p>
+      ) : null}
     </div>
   );
 }

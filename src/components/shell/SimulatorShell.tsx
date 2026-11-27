@@ -1,31 +1,43 @@
-import { useMemo, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
-import type { EducationPack, ExperimentDefinition, NotebookSpec, SliderControl } from '@/types/lab';
-import type { ModelOutput } from '@/components/shell/PhysicsExperiment';
-import type { LabState } from '@/hooks/useLabState';
-import type { NotebookRow } from '@/hooks/useNotebook';
-import { Viewport } from '@/components/shell/Viewport';
-import { Controls } from '@/components/controls/Controls';
-import { LineChart } from '@/components/charts/LineChart';
-import { LabNotebook } from '@/components/lab-notebook/LabNotebook';
-import { Tex } from '@/components/math/Tex';
-import { Icons } from '@/components/common/Icons';
-import { Chip } from '@/components/common/UI';
-import { formatFixed, formatSI } from '@/utils/format';
-import { unitInfo } from '@/data/units';
-import { useLocalized } from '@/i18n';
-import { SceneLayer, type CanvasScene } from '@/lab/canvas';
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { Link } from "react-router-dom";
+import type {
+  EducationPack,
+  ExperimentDefinition,
+  NotebookSpec,
+  SliderControl,
+} from "@/types/lab";
+import type { ModelOutput } from "@/components/shell/PhysicsExperiment";
+import type { LabState } from "@/hooks/useLabState";
+import type { NotebookRow } from "@/hooks/useNotebook";
+import { Viewport } from "@/components/shell/Viewport";
+import { Controls } from "@/components/controls/Controls";
+import { LineChart } from "@/components/charts/LineChart";
+import { LabNotebook } from "@/components/lab-notebook/LabNotebook";
+import { Tex } from "@/components/math/Tex";
+import { Icons } from "@/components/common/Icons";
+import { Chip } from "@/components/common/UI";
+import { formatFixed, formatSI } from "@/utils/format";
+import { unitInfo } from "@/data/units";
+import { useLocalized } from "@/i18n";
+import { SceneLayer, type CanvasScene } from "@/lab/canvas";
 
-const TABS = ['theory', 'formulae', 'variables', 'procedure', 'precautions', 'viva'] as const;
+const TABS = [
+  "theory",
+  "formulae",
+  "variables",
+  "procedure",
+  "precautions",
+  "viva",
+] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_LABEL: Record<Tab, string> = {
-  theory: 'Theory',
-  formulae: 'Formulae',
-  variables: 'Variables',
-  procedure: 'Procedure',
-  precautions: 'Precautions',
-  viva: 'Viva'
+  theory: "Theory",
+  formulae: "Formulae",
+  variables: "Variables",
+  procedure: "Procedure",
+  precautions: "Precautions",
+  viva: "Viva",
 };
 
 export interface SimulatorShellProps {
@@ -47,6 +59,9 @@ export interface SimulatorShellProps {
   onClearNotebook: () => void;
 }
 
+/** Placeholder "units" for pure numbers: shown as nothing rather than a dash. */
+const NO_UNIT = new Set(["", "-", "–", "—", "×"]);
+
 /** Chrome around one apparatus: header, viewport, readouts, graph, notebook, tabs. */
 export function SimulatorShell({
   definition,
@@ -63,40 +78,59 @@ export function SimulatorShell({
   onRemoveRow,
   onAnnotateRow,
   onConclusion,
-  onClearNotebook
+  onClearNotebook,
 }: SimulatorShellProps) {
-  const [tab, setTab] = useState<Tab>('theory');
+  const [tab, setTab] = useState<Tab>("theory");
   const { unitLabel } = useLocalized();
   const info = unitInfo(definition.unit);
 
   // Controls not pinned to the apparatus fall back to the dock beneath it.
   const dockControls = useMemo(
-    () => definition.controls.filter((c) => !c.onStage && !('stage' in c && c.stage)),
-    [definition.controls]
+    () =>
+      definition.controls.filter(
+        (c) => !c.onStage && !("stage" in c && c.stage),
+      ),
+    [definition.controls],
   );
 
   const issues = model.issues ?? [];
-  const errors = issues.filter((i) => i.severity === 'error');
-  const warnings = issues.filter((i) => i.severity === 'warning');
+  const errors = issues.filter((i) => i.severity === "error");
+  const warnings = issues.filter((i) => i.severity === "warning");
 
   return (
-    <article className="simulator lab-neu">
+    <article
+      className="simulator"
+      style={{ "--accent": info?.accent ?? "#25d0ee" } as CSSProperties}
+    >
       <header className="sim-head page">
         <nav className="breadcrumb" aria-label="Breadcrumb">
           <Link to="/simulators">Simulators</Link>
           <Icons.ChevronRight width={11} height={11} />
-          <Link to={info?.href ?? '/class-12'}>{unitLabel(definition.unit, info?.label ?? definition.chapter)}</Link>
+          <Link to={info?.href ?? "/class-12"}>
+            {unitLabel(definition.unit, info?.label ?? definition.chapter)}
+          </Link>
         </nav>
         <div className="sim-head-main">
           <div>
-            <p className="eyebrow">{definition.chapter}</p>
             <h1>{definition.title}</h1>
             <p className="sim-aim">{definition.aim}</p>
           </div>
           <div className="sim-head-chips">
-            <Chip tone={definition.kind === 'practical' ? 'primary' : 'ghost'}>{definition.kind}</Chip>
+            {definition.practicalNo ? (
+              <span className="exp-card-no is-inline">
+                {definition.practicalNo}
+              </span>
+            ) : null}
+            <Chip tone={definition.kind === "practical" ? "primary" : "ghost"}>
+              {definition.kind}
+            </Chip>
             <Chip tone="ghost">{definition.difficulty}</Chip>
-            <button type="button" className="btn btn-sm btn-ghost" onClick={lab.reset} disabled={!lab.dirty}>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={lab.reset}
+              disabled={!lab.dirty}
+            >
               <Icons.Reset width={13} height={13} /> Reset apparatus
             </button>
           </div>
@@ -109,7 +143,9 @@ export function SimulatorShell({
             overlay={overlay}
             caption={model.description}
             canvas={
-              scene ? <SceneLayer scene={scene} params={lab.params} model={model} /> : undefined
+              scene ? (
+                <SceneLayer scene={scene} params={lab.params} model={model} />
+              ) : undefined
             }
           >
             {stage}
@@ -118,7 +154,10 @@ export function SimulatorShell({
           {errors.length > 0 || warnings.length > 0 ? (
             <ul className="issue-list" aria-live="polite">
               {[...errors, ...warnings].map((i, k) => (
-                <li key={`${i.field}-${k}`} className={`callout callout-${i.severity === 'error' ? 'danger' : 'warning'}`}>
+                <li
+                  key={`${i.field}-${k}`}
+                  className={`callout callout-${i.severity === "error" ? "danger" : "warning"}`}
+                >
                   <Icons.Warning width={14} height={14} />
                   <span>{i.message}</span>
                 </li>
@@ -127,7 +166,11 @@ export function SimulatorShell({
           ) : null}
 
           {dockControls.length > 0 ? (
-            <Controls specs={dockControls} params={lab.params} onChange={lab.set} />
+            <Controls
+              specs={dockControls}
+              params={lab.params}
+              onChange={lab.set}
+            />
           ) : null}
         </div>
 
@@ -140,11 +183,16 @@ export function SimulatorShell({
             </header>
             <div className="panel-body readout-grid">
               {model.readouts.map((r) => (
-                <div key={r.key} className={`readout-cell tone-${r.tone ?? 'normal'}`}>
+                <div
+                  key={r.key}
+                  className={`readout-cell tone-${r.tone ?? "normal"}`}
+                >
                   <span className="readout-label">{r.label}</span>
                   <span className="readout">
                     {r.text ?? formatDisplay(r.value, r.precision)}
-                    {r.unit ? <i> {r.unit}</i> : null}
+                    {r.unit && !NO_UNIT.has(r.unit.trim()) ? (
+                      <i> {r.unit}</i>
+                    ) : null}
                   </span>
                   {r.sub ? <span className="readout-sub">{r.sub}</span> : null}
                 </div>
@@ -202,15 +250,20 @@ export function SimulatorShell({
                 aria-selected={tab === t}
                 aria-controls={`panel-${t}`}
                 tabIndex={tab === t ? 0 : -1}
-                className={`tab${tab === t ? ' is-active' : ''}`}
+                className={`tab${tab === t ? " is-active" : ""}`}
                 onClick={() => setTab(t)}
               >
                 {TAB_LABEL[t]}
               </button>
             ))}
           </div>
-          <div className="panel-body" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-            {tab === 'theory' ? (
+          <div
+            className="panel-body"
+            role="tabpanel"
+            id={`panel-${tab}`}
+            aria-labelledby={`tab-${tab}`}
+          >
+            {tab === "theory" ? (
               <div className="prose">
                 {education.theory.map((p, i) => (
                   <p key={i}>{p}</p>
@@ -228,18 +281,20 @@ export function SimulatorShell({
               </div>
             ) : null}
 
-            {tab === 'formulae' ? (
+            {tab === "formulae" ? (
               <ul className="formula-list">
                 {education.formulas.map((f, i) => (
                   <li key={i}>
                     <Tex block>{f.tex}</Tex>
-                    {f.caption ? <span className="muted">{f.caption}</span> : null}
+                    {f.caption ? (
+                      <span className="muted">{f.caption}</span>
+                    ) : null}
                   </li>
                 ))}
               </ul>
             ) : null}
 
-            {tab === 'variables' ? (
+            {tab === "variables" ? (
               <div className="table-scroll">
                 <table className="var-table">
                   <thead>
@@ -257,8 +312,8 @@ export function SimulatorShell({
                           <Tex>{v.symbol}</Tex>
                         </td>
                         <td>{v.name}</td>
-                        <td>{v.unit || '—'}</td>
-                        <td className="muted">{v.note ?? '—'}</td>
+                        <td>{v.unit || "—"}</td>
+                        <td className="muted">{v.note ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -266,7 +321,7 @@ export function SimulatorShell({
               </div>
             ) : null}
 
-            {tab === 'procedure' ? (
+            {tab === "procedure" ? (
               <ol className="prose numbered">
                 {education.procedure.map((p, i) => (
                   <li key={i}>{p}</li>
@@ -274,7 +329,7 @@ export function SimulatorShell({
               </ol>
             ) : null}
 
-            {tab === 'precautions' ? (
+            {tab === "precautions" ? (
               <div className="prose">
                 <ul>
                   {education.precautions.map((p, i) => (
@@ -294,7 +349,7 @@ export function SimulatorShell({
               </div>
             ) : null}
 
-            {tab === 'viva' ? (
+            {tab === "viva" ? (
               <dl className="viva-list">
                 {education.viva.map((v, i) => (
                   <div key={i}>
@@ -313,9 +368,10 @@ export function SimulatorShell({
 
 /** Small values get an SI prefix; ordinary bench readings stay fixed-point. */
 function formatDisplay(value: number, precision = 3): string {
-  if (!Number.isFinite(value)) return '—';
+  if (!Number.isFinite(value)) return "—";
   const abs = Math.abs(value);
-  if (abs !== 0 && (abs < 1e-3 || abs >= 1e5)) return formatSI(value, Math.max(precision, 3));
+  if (abs !== 0 && (abs < 1e-3 || abs >= 1e5))
+    return formatSI(value, Math.max(precision, 3));
   return formatFixed(value, precision);
 }
 
