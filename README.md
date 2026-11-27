@@ -1,5 +1,7 @@
 # Virtual Physics Lab
 
+**[▶ Open the live lab](https://anveshix.github.io/virtual-physics-lab/)** · [Offline single file (`portable/virtual-physics-lab.html`)](portable/virtual-physics-lab.html) · [Handover](docs/HANDOVER.md)
+
 An interactive physics laboratory for **CBSE / NCERT Class XII**, aligned to the
 **2026-27** curriculum. Every apparatus is a live simulator: move a control and
 the numerical model recomputes, the instrument responds, the reading updates,
@@ -96,4 +98,29 @@ special case.
 `docs/animation/` · `docs/accessibility/` · `docs/curriculum/` ·
 `docs/testing/` · `docs/upgrade/` (baseline, repository map, decision log).
 
-See `HANDOVER.md` for the full picture, the techniques used, and the roadmap.
+See `docs/HANDOVER.md` for the full picture, the techniques used, and the roadmap.
+
+## Folder structure
+
+| Path | Contents |
+|---|---|
+| `src/` | The lab: experiment modules, circuit bench, UI and shared components |
+| `docs/` | Handover, architecture, accessibility, audio, curriculum and experiment notes |
+| `portable/` | Built single-file version that runs from `file://` (committed on purpose) |
+| `scripts/` | Catalogue, audit and portable-build scripts |
+| `server.mjs` | Small local server for `npm run serve` |
+| `.github/workflows/` | CI and GitHub Pages deployment |
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately as described in [SECURITY.md](SECURITY.md). Every new experiment must follow the invariants in [docs/HANDOVER.md](docs/HANDOVER.md) §0.
+
+## License
+
+No licence has been chosen for this repository yet. Until one is added, the default applies: **all rights reserved** by the author (anveshix). Please ask before reusing or redistributing the code.
+
+Third-party libraries keep their own licences (all MIT). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Author
+
+**anveshix** — [github.com/anveshix](https://github.com/anveshix)

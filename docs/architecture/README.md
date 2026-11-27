@@ -32,7 +32,7 @@ all additive rather than rewrites.
 Every `src/simulations/experiments/<slug>.tsx` exports `meta`, `definition`,
 `education`, `compute`, `renderStage` and a default component. The meta is the
 single source of truth for identity; drift is a test failure. See
-`HANDOVER.md §2` for the full contract and `ohms-law.tsx` for the reference.
+`docs/HANDOVER.md` §2 for the full contract and `ohms-law.tsx` for the reference.
 
 ## The circuit bench (2.0)
 
