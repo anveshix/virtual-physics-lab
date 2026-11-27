@@ -1,10 +1,10 @@
-import { useEffect } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
-import { CatalogueShell } from '@/components/common/Catalogue';
-import { UNITS } from '@/data/units';
-import { byUnit } from '@/experiments/registry';
-import type { UnitSlug } from '@/types/lab';
-import { documentTitle } from '@/app/branding/brand';
+import { useEffect } from "react";
+import { Navigate, useParams } from "react-router-dom";
+import { CatalogueShell } from "@/components/common/Catalogue";
+import { UNITS } from "@/data/units";
+import { byUnit } from "@/experiments/registry";
+import type { UnitSlug } from "@/types/lab";
+import { documentTitle } from "@/app/branding/brand";
 
 export default function UnitPage() {
   const { unit } = useParams<{ unit: string }>();
@@ -20,10 +20,9 @@ export default function UnitPage() {
   return (
     <CatalogueShell
       title={meta.label}
-      lede={`${meta.ncert} — ${meta.description} ${items.length} interactive experiment${items.length === 1 ? '' : 's'} in this unit.`}
+      lede={meta.ncert}
       unit={meta.slug}
       items={items}
-      showUnits={false}
     />
   );
 }

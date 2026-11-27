@@ -1,8 +1,7 @@
-import { useRef, type ReactNode } from 'react';
-import type { ParamValues } from '@/types/lab';
-import type { ModelOutput } from '@/components/shell/PhysicsExperiment';
-import { CanvasStage } from './CanvasStage';
-import { disclosure as drawDisclosure } from './primitives';
+import { useRef, type ReactNode } from "react";
+import type { ParamValues } from "@/types/lab";
+import type { ModelOutput } from "@/components/shell/PhysicsExperiment";
+import { CanvasStage } from "./CanvasStage";
 
 export const STAGE_W = 820;
 export const STAGE_H = 470;
@@ -59,7 +58,12 @@ export interface SceneLayerProps {
  * next frame — with no re-render of the canvas component, and no chance of the
  * scene drawing last render's numbers.
  */
-export function SceneLayer({ scene, params, model, overlay = true }: SceneLayerProps) {
+export function SceneLayer({
+  scene,
+  params,
+  model,
+  overlay = true,
+}: SceneLayerProps) {
   const live = useRef({ params, model });
   live.current = { params, model };
 
@@ -67,27 +71,27 @@ export function SceneLayer({ scene, params, model, overlay = true }: SceneLayerP
   const height = scene.height ?? STAGE_H;
 
   return (
-    <CanvasStage
-      width={width}
-      height={height}
-      overlay={overlay}
-      label={scene.label(params, model)}
-      draw={(ctx, frame) => {
-        const { params: p, model: m } = live.current;
-        scene.draw({
-          ctx,
-          time: frame.time,
-          dt: frame.dt,
-          params: p,
-          model: m,
-          width,
-          height
-        });
-        if (scene.disclosure) {
-          drawDisclosure(ctx, scene.disclosure, { x: 0, y: 0, w: width, h: height });
-        }
-      }}
-    />
+    <>
+      <CanvasStage
+        width={width}
+        height={height}
+        overlay={overlay}
+        label={scene.label(params, model)}
+        draw={(ctx, frame) => {
+          const { params: p, model: m } = live.current;
+          scene.draw({
+            ctx,
+            time: frame.time,
+            dt: frame.dt,
+            params: p,
+            model: m,
+            width,
+            height,
+          });
+        }}
+      />
+      {scene.disclosure ? <SceneNote text={scene.disclosure} /> : null}
+    </>
   );
 }
 
@@ -123,8 +127,27 @@ export class TrailBuffer {
 
 /** Convenience for a scene that only needs a static label. */
 export const staticLabel =
-  (text: string): CanvasScene['label'] =>
+  (text: string): CanvasScene["label"] =>
   () =>
     text;
 
 export type SceneChildren = ReactNode;
+
+/**
+ * What the animation is, one tap away rather than printed across the
+ * apparatus. Every scene still states it — the honesty is unchanged — but the
+ * bench stays clear for the experiment.
+ */
+export function SceneNote({ text }: { text: string }) {
+  return (
+    <span
+      className="scene-note"
+      tabIndex={0}
+      role="note"
+      aria-label={`About this animation: ${text}`}
+      data-tip={text}
+    >
+      <span aria-hidden="true">i</span>
+    </span>
+  );
+}

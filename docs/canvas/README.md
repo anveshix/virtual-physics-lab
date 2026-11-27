@@ -9,11 +9,11 @@ charge carriers, a vibrating string — are painted on a `<canvas>` inside a
 That split is not a compromise; it is the only arrangement that keeps three
 things at once:
 
-| Kept by | What would be lost on a full-canvas route |
-|---|---|
-| SVG apparatus | the placement audit (it queries `svg.svg-lab`, `.stage-ctl`, `.readout`) would go blind on that route |
-| SVG controls | `role="slider"`, `aria-valuenow`, keyboard access, focus rings — a canvas has no accessibility tree |
-| canvas entities | nothing: a hundred moving dots cost a hundred draw calls instead of a hundred layout passes |
+| Kept by         | What would be lost on a full-canvas route                                                             |
+| --------------- | ----------------------------------------------------------------------------------------------------- |
+| SVG apparatus   | the placement audit (it queries `svg.svg-lab`, `.stage-ctl`, `.readout`) would go blind on that route |
+| SVG controls    | `role="slider"`, `aria-valuenow`, keyboard access, focus rings — a canvas has no accessibility tree   |
+| canvas entities | nothing: a hundred moving dots cost a hundred draw calls instead of a hundred layout passes           |
 
 This is also what PhET does. The picture is canvas; the instrument is DOM.
 
@@ -67,18 +67,18 @@ Four rules, each learned from a bug rather than assumed:
 
 ## Scene families
 
-| Family | Module | Drives from |
-|---|---|---|
-| electrostatic field | `scenes/field.ts` | superposition Σ kq r̂/r² over the real charges |
-| optical rays | `scenes/rays.ts` | the experiment's own ray construction; `chainRays` keeps one optical clock across media, so packets crowd to λ/n in glass, and each ray's `weight` (Fresnel, or the power left in a fibre) sets its brightness |
-| diffraction | `scenes/diffraction.ts` | the model's `intensityAt` on the screen: Huygens wavelets at each source, far-field arcs lit only where the screen is bright; incoherent mode scrambles the wavelet phases |
-| circuit carriers | `scenes/circuit.ts` | the MNA solution's per-branch current |
-| axial magnetic field | `scenes/axial-field.ts` | the model's `B(x)` on the axis |
-| standing wave | `scenes/standing-wave.ts` | the model's amplitude, mode and frequency |
+| Family               | Module                    | Drives from                                                                                                                                                                                                    |
+| -------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| electrostatic field  | `scenes/field.ts`         | superposition Σ kq r̂/r² over the real charges                                                                                                                                                                  |
+| optical rays         | `scenes/rays.ts`          | the experiment's own ray construction; `chainRays` keeps one optical clock across media, so packets crowd to λ/n in glass, and each ray's `weight` (Fresnel, or the power left in a fibre) sets its brightness |
+| diffraction          | `scenes/diffraction.ts`   | the model's `intensityAt` on the screen: Huygens wavelets at each source, far-field arcs lit only where the screen is bright; incoherent mode scrambles the wavelet phases                                     |
+| circuit carriers     | `scenes/circuit.ts`       | the MNA solution's per-branch current                                                                                                                                                                          |
+| axial magnetic field | `scenes/axial-field.ts`   | the model's `B(x)` on the axis                                                                                                                                                                                 |
+| standing wave        | `scenes/standing-wave.ts` | the model's amplitude, mode and frequency                                                                                                                                                                      |
 
 ## Coverage
 
-All 49 experiments have the neumorphic case, the LED readouts, the notebook and
+All 49 experiments have the glass bezel (`src/styles/glass.css`), the LCD readout cells, the notebook and
 the live graph. Eighteen have a bespoke canvas scene:
 
 `coulombs-law` · `electric-field-charges` · `convex-lens` · `concave-lens` ·
