@@ -2111,3 +2111,299 @@ html[data-motion="off"] *::after {
 .simulator .viewport-bezel * {
   box-shadow: none !important;
 }
+
+/* ══ Refinement · readable during experiments, calm motion, clear at every width ══ */
+
+/* Experiment pages: no moving backdrop, a flat dark bench behind the panels. */
+.app.is-experiment {
+  background: radial-gradient(
+    120% 70% at 50% -20%,
+    #0c1631 0%,
+    #060a18 55%,
+    #050814 100%
+  );
+}
+
+/* Measurements. Labels keep their case so a symbol stays the right symbol —
+   image distance v is not V, mass per length m is not M. Values sit on one
+   baseline with their unit, without glow, so a reading is read at a glance. */
+.readout-grid {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+.readout-cell {
+  gap: 4px;
+  padding: 10px 12px 11px;
+  background: rgba(3, 8, 16, 0.72);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+.readout-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-2);
+  line-height: 1.3;
+}
+.readout-cell .readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 2px;
+  font-size: 1.3rem;
+  line-height: 1.2;
+  text-shadow: none;
+}
+.readout-cell .readout i {
+  font-size: 0.8rem;
+  color: var(--ink-3);
+}
+.readout-cell.tone-neg .readout,
+.readout-cell.tone-alert .readout {
+  text-shadow: none;
+}
+.readout-cell.tone-alert {
+  border-color: rgba(255, 138, 152, 0.4);
+  background: rgba(40, 8, 16, 0.55);
+}
+.readout-sub {
+  font-size: 0.72rem;
+  color: var(--ink-3);
+  line-height: 1.35;
+}
+.notebook .readout,
+.view-pill .readout {
+  text-shadow: none;
+}
+.notebook dt,
+.notebook-compare dt,
+.notebook-foot dt {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.78rem;
+  color: var(--ink-2);
+}
+/* The plotted line needs no halo to be seen; the halo blurred the points. */
+.chart-series {
+  filter: none;
+}
+.result-panel .panel-body p:first-child {
+  line-height: 1.6;
+}
+
+/* Calm motion: nothing pulses on its own; hover feedback is small. */
+.live-dot {
+  animation: none;
+  box-shadow: 0 0 0 3px rgba(78, 240, 168, 0.16);
+}
+.exp-card:hover,
+.exp-card:focus-within {
+  transform: translateY(-2px);
+}
+.simulator .btn:hover,
+.simulator .btn:active {
+  transform: none;
+}
+
+/* Field hero legend: what the lines mean. */
+.hero-visual-bar {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  row-gap: 6px;
+}
+.field-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.field-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.field-legend i {
+  display: inline-block;
+  width: 18px;
+  height: 0;
+  border-top: 2px solid rgba(158, 235, 255, 0.85);
+}
+.field-legend .lg-equi {
+  border-top: 2px solid transparent;
+  border-image: linear-gradient(90deg, #5aa8ff, #ff6b7d) 1;
+}
+
+/* Header: the nav moves to its own row before it can collide with the actions. */
+@media (max-width: 960px) {
+  .header-inner {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .app-nav {
+    order: 3;
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+  .header-actions {
+    margin-left: auto;
+  }
+}
+@media (max-width: 560px) {
+  .app-nav {
+    justify-content: space-between;
+    gap: 2px;
+  }
+  .app-nav .nav-link {
+    flex: 1 1 auto;
+    padding: 7px 6px;
+    font-size: 0.82rem;
+    text-align: center;
+  }
+}
+
+/* Tablet: measurements and graph side by side under the apparatus. */
+@media (min-width: 721px) and (max-width: 1180px) {
+  .sim-side {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+/* Study tabs scroll sideways on narrow screens with a hint at the edge. */
+.tabs {
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+.tab {
+  scroll-snap-align: start;
+}
+
+/* Lab notebook header: title, then actions — never squeezed side by side. */
+.notebook > .panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.notebook > .panel-head .row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Phones: the apparatus gets the width; live readings move under it instead of
+   covering its knobs; controls are thumb-sized. */
+@media (max-width: 720px) {
+  .simulator {
+    padding: 0 6px;
+  }
+  .viewport-bezel {
+    padding: 4px;
+    border-radius: 16px;
+  }
+  .viewport-stage {
+    border-radius: 12px;
+  }
+  .viewport-overlay {
+    position: static;
+    justify-content: center;
+    padding: 8px 4px 4px;
+  }
+  .sim-head h1 {
+    font-size: 1.45rem;
+  }
+  .sim-aim {
+    font-size: 0.88rem;
+  }
+  .readout-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .readout-cell .readout {
+    font-size: 1.12rem;
+  }
+  .control-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  input[type="range"] {
+    min-height: 32px;
+  }
+  .notebook > .panel-head .row {
+    width: 100%;
+  }
+  .tabs {
+    -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent);
+    mask-image: linear-gradient(90deg, #000 85%, transparent);
+  }
+  .exp-nav,
+  .sim-pager {
+    flex-wrap: wrap;
+  }
+}
+
+/* Recording is locked until the hint's condition is met: make that the cue. */
+.notebook-hint.is-waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #ffd38a;
+  background: rgba(255, 190, 90, 0.08);
+  border: 1px solid rgba(255, 190, 90, 0.25);
+}
+
+/* Difficulty is named, not only drawn: bars alone mean nothing on a touch screen. */
+.level i {
+  width: 10px;
+}
+.level-text {
+  margin-left: 4px;
+  font-size: 0.72rem;
+  color: var(--ink-3);
+  text-transform: capitalize;
+}
+.exp-card-foot {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+/* Catalogue tools on phones: search full width, filters one tidy row. */
+@media (max-width: 720px) {
+  .catalogue-tools {
+    flex-direction: row;
+    align-items: center;
+  }
+  .search-field {
+    flex: 1 1 100%;
+  }
+  .filter-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .filter-chips .fchip {
+    flex: none;
+  }
+}
+
+/* Live readings sit in a strip above the apparatus instead of on top of it,
+   so they never hide a label, a knob or the scene's own heading. */
+.viewport-bezel {
+  display: flex;
+  flex-direction: column;
+}
+.viewport-overlay {
+  position: static;
+  order: -1;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 2px 2px 8px;
+}
+.viewport-overlay:empty {
+  display: none;
+}

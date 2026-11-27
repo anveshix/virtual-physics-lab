@@ -59,6 +59,9 @@ export interface SimulatorShellProps {
   onClearNotebook: () => void;
 }
 
+/** Placeholder "units" for pure numbers: shown as nothing rather than a dash. */
+const NO_UNIT = new Set(["", "-", "–", "—", "×"]);
+
 /** Chrome around one apparatus: header, viewport, readouts, graph, notebook, tabs. */
 export function SimulatorShell({
   definition,
@@ -187,7 +190,9 @@ export function SimulatorShell({
                   <span className="readout-label">{r.label}</span>
                   <span className="readout">
                     {r.text ?? formatDisplay(r.value, r.precision)}
-                    {r.unit ? <i> {r.unit}</i> : null}
+                    {r.unit && !NO_UNIT.has(r.unit.trim()) ? (
+                      <i> {r.unit}</i>
+                    ) : null}
                   </span>
                   {r.sub ? <span className="readout-sub">{r.sub}</span> : null}
                 </div>

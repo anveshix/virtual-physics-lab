@@ -61,12 +61,13 @@ export function AppLayout({ children }: { children?: ReactNode }) {
   // Browsers refuse to start an AudioContext outside a gesture, so the shell
   // arms it once rather than every control that might make a noise.
   useAudioUnlock(prefs.sound, prefs.volume);
-  // On an experiment the GPU belongs to the simulation: the backdrop holds still.
+  // On an experiment the GPU and the student's attention belong to the
+  // apparatus: no animated backdrop at all, just a calm, flat dark bench.
   const onExperiment = /\/simulators\/physics\/[^/]+/.test(pathname);
 
   return (
-    <div className="app">
-      <AuroraBackdrop frozen={onExperiment} />
+    <div className={`app${onExperiment ? " is-experiment" : ""}`}>
+      {onExperiment ? null : <AuroraBackdrop />}
       <a className="skip-link" href="#main">
         Skip to content
       </a>

@@ -96,10 +96,12 @@ const START: Charge[] = [
 export interface FieldHeroProps {
   /** Shown instead when this browser has no WebGL. */
   fallback: React.ReactNode;
+  /** Explains what the picture shows; rendered only with the live field. */
+  legend?: React.ReactNode;
 }
 
 /** The interactive field lab on the home page. */
-export function FieldHero({ fallback }: FieldHeroProps) {
+export function FieldHero({ fallback, legend }: FieldHeroProps) {
   const host = useRef<HTMLDivElement>(null);
   const [charges, setCharges] = useState<Charge[]>(START);
   const chargesRef = useRef(charges);
@@ -299,29 +301,32 @@ export function FieldHero({ fallback }: FieldHeroProps) {
   if (!ok) return <>{fallback}</>;
 
   return (
-    <div
-      ref={host}
-      className="field-hero"
-      role="group"
-      aria-label="Electric field of three line charges. Drag a charge to move it; press it to flip its sign."
-    >
-      {charges.map((c, i) => (
-        <button
-          key={i}
-          type="button"
-          className={`field-charge ${c.q > 0 ? "is-pos" : "is-neg"}`}
-          style={toPct(c)}
-          aria-label={`Charge ${i + 1}, ${c.q > 0 ? "positive" : "negative"}. Arrow keys move it; Enter flips its sign.`}
-          onPointerDown={onPointerDown(i)}
-          onKeyDown={onKey(i)}
-          onClick={(e) => {
-            // Pointer taps are handled on pointer-up; this is the keyboard path.
-            if (e.detail === 0) flip(i);
-          }}
-        >
-          {c.q > 0 ? "+" : "−"}
-        </button>
-      ))}
-    </div>
+    <>
+      <div
+        ref={host}
+        className="field-hero"
+        role="group"
+        aria-label="Electric field of three line charges. Drag a charge to move it; press it to flip its sign."
+      >
+        {charges.map((c, i) => (
+          <button
+            key={i}
+            type="button"
+            className={`field-charge ${c.q > 0 ? "is-pos" : "is-neg"}`}
+            style={toPct(c)}
+            aria-label={`Charge ${i + 1}, ${c.q > 0 ? "positive" : "negative"}. Arrow keys move it; Enter flips its sign.`}
+            onPointerDown={onPointerDown(i)}
+            onKeyDown={onKey(i)}
+            onClick={(e) => {
+              // Pointer taps are handled on pointer-up; this is the keyboard path.
+              if (e.detail === 0) flip(i);
+            }}
+          >
+            {c.q > 0 ? "+" : "−"}
+          </button>
+        ))}
+      </div>
+      {legend}
+    </>
   );
 }

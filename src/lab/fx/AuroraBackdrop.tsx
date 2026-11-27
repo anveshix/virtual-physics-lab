@@ -51,7 +51,7 @@ float fbm(vec2 p) {
 
 void main() {
   vec2 p = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
-  float t = uTime * 0.03;
+  float t = uTime * 0.018;
 
   vec2 q = vec2(fbm(p * 1.3 + vec2(0.0, t)), fbm(p * 1.3 + vec2(5.2, -t)));
   vec2 r = vec2(fbm(p * 1.7 + 3.0 * q + vec2(1.7, 9.2) + t * 0.6),
@@ -62,26 +62,27 @@ void main() {
   vec3 cyan = vec3(0.09, 0.72, 0.88);
   vec3 violet = vec3(0.40, 0.30, 0.95);
   vec3 rose = vec3(0.90, 0.32, 0.62);
-  col = mix(col, violet * 0.30, smoothstep(0.40, 0.90, f));
-  col = mix(col, cyan * 0.30, smoothstep(0.50, 0.98, r.x) * 0.8);
-  col += rose * 0.07 * smoothstep(0.62, 1.0, q.y);
+  // Kept dim on purpose: it is a backdrop for reading, not a light show.
+  col = mix(col, violet * 0.22, smoothstep(0.40, 0.90, f));
+  col = mix(col, cyan * 0.22, smoothstep(0.50, 0.98, r.x) * 0.8);
+  col += rose * 0.045 * smoothstep(0.62, 1.0, q.y);
 
   // Contours of the same field: thin, faint, drifting with it.
   float c = abs(fract(f * 8.0) - 0.5);
   col += cyan * 0.045 * smoothstep(0.07, 0.0, c) * smoothstep(0.35, 0.85, f);
 
-  // A sparse, twinkling star field.
+  // A sparse star field with a slow, slight shimmer.
   vec2 cell = floor(p * 70.0);
   float h = hash(cell);
   if (h > 0.982) {
     vec2 at = fract(p * 70.0) - (0.25 + 0.5 * vec2(hash(cell + 3.1), hash(cell + 7.7)));
-    float tw = 0.55 + 0.45 * sin(uTime * (0.6 + h) + h * 90.0);
-    col += vec3(0.75, 0.85, 1.0) * 0.5 * tw * smoothstep(0.09, 0.0, length(at));
+    float tw = 0.8 + 0.2 * sin(uTime * (0.25 + 0.3 * h) + h * 90.0);
+    col += vec3(0.75, 0.85, 1.0) * 0.32 * tw * smoothstep(0.09, 0.0, length(at));
   }
 
   // Cursor light.
   float d = length(p - uMouse);
-  col += cyan * 0.07 * exp(-d * d * 5.0);
+  col += cyan * 0.035 * exp(-d * d * 5.0);
 
   col *= 1.0 - 0.5 * length(vUv - 0.5);
   gl_FragColor = vec4(col, 1.0);

@@ -39,7 +39,7 @@ export function useReveal(
     if (items.length === 0) return;
     for (const el of items) {
       el.style.opacity = "0";
-      el.style.transform = "translateY(18px)";
+      el.style.transform = "translateY(10px)";
     }
     const io = new IntersectionObserver(
       (entries) => {
@@ -53,9 +53,9 @@ export function useReveal(
         }
         animate(entering, {
           opacity: [0, 1],
-          translateY: [18, 0],
-          duration: 720,
-          delay: stagger(55),
+          translateY: [10, 0],
+          duration: 520,
+          delay: stagger(40),
           ease: "outExpo",
           onComplete: () => {
             for (const el of entering) el.style.transform = "";

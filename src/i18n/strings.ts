@@ -140,9 +140,11 @@ export const STRINGS = {
   "home.experiments": { en: "Experiments", hi: "प्रयोग" },
   "home.units": { en: "Units", hi: "इकाइयाँ" },
   "home.fieldHint": {
-    en: "Live field · drag a charge, tap to flip it",
-    hi: "जीवंत क्षेत्र · आवेश खींचें, पलटने हेतु टैप करें",
+    en: "Drag a charge · tap to flip its sign",
+    hi: "आवेश खींचें · चिह्न बदलने हेतु टैप करें",
   },
+  "home.lgField": { en: "Field lines (+ to −)", hi: "क्षेत्र रेखाएँ (+ से −)" },
+  "home.lgEqui": { en: "Equipotentials", hi: "समविभव रेखाएँ" },
   "home.popular": { en: "Popular experiments", hi: "लोकप्रिय प्रयोग" },
   "home.viewAll": { en: "View all", hi: "सभी देखें" },
   "home.explore": { en: "Explore by unit", hi: "इकाई अनुसार देखें" },

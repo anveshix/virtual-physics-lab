@@ -64,7 +64,7 @@ export function ExperimentCard({ meta }: { meta: ExperimentMeta }) {
               <i />
               <i />
               <i />
-              <span className="sr-only">{difficulty(meta.difficulty)}</span>
+              <span className="level-text">{difficulty(meta.difficulty)}</span>
             </span>
           </div>
         </div>

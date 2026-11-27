@@ -94,11 +94,24 @@ export default function HomePage() {
             </div>
           </div>
           <div className="hero-visual glass" data-reveal>
-            <FieldHero fallback={<HeroApparatus />} />
-            <div className="hero-visual-bar">
-              <span className="live-dot" aria-hidden="true" />{" "}
-              {t("home.fieldHint")}
-            </div>
+            <FieldHero
+              fallback={<HeroApparatus />}
+              legend={
+                <div className="hero-visual-bar">
+                  <span className="field-hint">{t("home.fieldHint")}</span>
+                  <ul className="field-legend">
+                    <li>
+                      <i className="lg-field" aria-hidden="true" />
+                      {t("home.lgField")}
+                    </li>
+                    <li>
+                      <i className="lg-equi" aria-hidden="true" />
+                      {t("home.lgEqui")}
+                    </li>
+                  </ul>
+                </div>
+              }
+            />
           </div>
         </div>
       </section>
