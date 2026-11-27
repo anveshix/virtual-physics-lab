@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useMemo, useRef } from 'react';
+import { useRafLoop, useReducedMotion } from '@/hooks/useAnimation';
 import type { EducationPack, ExperimentDefinition, ParamValues } from '@/types/lab';
 import type { ModelOutput } from '@/components/shell/PhysicsExperiment';
 import { PhysicsExperiment } from '@/components/shell/PhysicsExperiment';
 import { SvgDefs } from '@/components/shell/Viewport';
 import { CONSTANTS } from '@/physics-engine/constants';
-import { cyclotronFrequency, gyroradius, cyclotronMaxEnergy } from '@/physics-engine/magnetism';
+import { cyclotronFrequency, cyclotronMaxEnergy, gyroradius } from '@/physics-engine/magnetism';
 import { jToEv } from '@/physics-engine/units';
 import { formatSI } from '@/utils/format';
 import { col, num, ro, singleSeriesGraph } from './_shared';
@@ -119,119 +120,240 @@ function compute(params: ParamValues): ModelOutput {
   };
 }
 
+/** One sampled point of the drawn orbit: where the ion is, when, and how far along. */
+export interface OrbitSample {
+  x: number;
+  y: number;
+  /** Display time in seconds from injection. */
+  t: number;
+  /** Path length drawn so far, in px. */
+  s: number;
+  /** Which half-turn (0-based) the ion is on; -1 in the gap or the exit leg. */
+  half: number;
+}
+
+export interface OrbitLayout {
+  cx: number;
+  cy: number;
+  /** Radius of the last orbit, in px — the drawn dee radius. */
+  maxR: number;
+  gap: number;
+  /** Half-turns drawn. */
+  halves: number;
+  /** Display seconds per half-turn; the same for every orbit. */
+  halfTime: number;
+  gapTime: number;
+  exitLength: number;
+}
+
+/**
+ * The cyclotron spiral, built honestly. The ion gains the same energy at
+ * every gap crossing, so after k crossings K ∝ k and r = mv/qB ∝ √K ∝ √k.
+ * Each half-turn is a true semicircle centred on the gap edge of its dee, and
+ * successive centres drift so that each orbit begins where the last left the
+ * gap. Every half-turn takes the same time — the cyclotron's central fact —
+ * so a larger orbit is drawn faster, not slower. With B out of the page a
+ * positive ion circulates clockwise on screen.
+ */
+export function cyclotronOrbit(o: OrbitLayout): OrbitSample[] {
+  const n = Math.max(1, Math.round(o.halves));
+  const radii = Array.from({ length: n }, (_, k) => o.maxR * Math.sqrt((k + 1) / n));
+  // Centre heights, chained so the ends meet across the gap.
+  const yc: number[] = [0];
+  for (let k = 0; k < n - 1; k++) {
+    const r0 = radii[k] as number;
+    const r1 = radii[k + 1] as number;
+    const prev = yc[k] as number;
+    yc.push(k % 2 === 0 ? prev - r0 + r1 : prev + r0 - r1);
+  }
+  // Put the outermost orbit on the dee centre, so the ion leaves at R.
+  const shift = o.cy - (yc[n - 1] as number);
+
+  const out: OrbitSample[] = [];
+  let t = 0;
+  let s = 0;
+  const push = (x: number, y: number, half: number): void => {
+    const last = out[out.length - 1];
+    if (last) s += Math.hypot(x - last.x, y - last.y);
+    out.push({ x, y, t, s, half });
+  };
+  const STEPS = 40;
+  for (let k = 0; k < n; k++) {
+    const left = k % 2 === 0;
+    const r = radii[k] as number;
+    const cxk = o.cx + (left ? -o.gap / 2 : o.gap / 2);
+    const cyk = (yc[k] as number) + shift;
+    // Left dee: bottom → left → top (θ π/2 → 3π/2). Right: top → right → bottom.
+    const a0 = left ? Math.PI / 2 : -Math.PI / 2;
+    for (let i = 0; i <= STEPS; i++) {
+      if (k > 0 && i === 0) continue;
+      const th = a0 + (Math.PI * i) / STEPS;
+      if (i > 0) t += o.halfTime / STEPS;
+      push(cxk + r * Math.cos(th), cyk + r * Math.sin(th), k);
+    }
+    if (k < n - 1) {
+      // Across the gap, where the RF field does its work.
+      const last = out[out.length - 1] as OrbitSample;
+      t += o.gapTime;
+      push(left ? o.cx + o.gap / 2 : o.cx - o.gap / 2, last.y, -1);
+    }
+  }
+  // Out along the tangent towards the target.
+  const end = out[out.length - 1] as OrbitSample;
+  const dir = (n - 1) % 2 === 0 ? 1 : -1;
+  t += (o.exitLength / (Math.PI * o.maxR)) * o.halfTime;
+  push(end.x + dir * o.exitLength, end.y, -1);
+  return out;
+}
+
+/** The sample index reached at display time t (binary search on the timestamps). */
+function sampleAt(orbit: OrbitSample[], t: number): number {
+  let lo = 0;
+  let hi = orbit.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if ((orbit[mid] as OrbitSample).t <= t) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
+const CYC = { cx: 410, cy: 236, gap: 24 };
+/** The largest drawable orbit; Dee radius R in cm is mapped onto 92–172 px. */
+const deePx = (rDeeCm: number): number => 92 + ((rDeeCm - 10) / 70) * 80;
+const MAX_HALVES = 30;
+
 function Stage({ params, set, control }: StageApi) {
   const b = num(params, 'b', 1);
   const vGap = num(params, 'vGap', 20) * 1000;
-  const rDee = num(params, 'rDee', 40) / 100;
+  const rDeeCm = num(params, 'rDee', 40);
+  const rDee = rDeeCm / 100;
   const p = particleOf(String(params.particle ?? 'proton'));
   const trail = Boolean(params.trail ?? true);
+  const reduced = useReducedMotion();
   const f = cyclotronFrequency(p.q, b, p.m);
   const vMax = (p.q * b * rDee) / p.m;
   const eMax = 0.5 * p.m * vMax * vMax;
+  // Real crossings to reach R; the drawing thins them to a countable number.
+  const realCrossings = Math.max(1, Math.round(eMax / (p.q * vGap)));
+  const halves = Math.min(realCrossings, MAX_HALVES);
+  const R = deePx(rDeeCm);
+
+  const orbit = useMemo(
+    () =>
+      cyclotronOrbit({ ...CYC, maxR: R, halves, halfTime: 0.36, gapTime: 0.05, exitLength: 150 }),
+    [R, halves]
+  );
+  const total = (orbit[orbit.length - 1] as OrbitSample).s;
+  const duration = (orbit[orbit.length - 1] as OrbitSample).t + 0.9;
+  const d = useMemo(
+    () => orbit.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`).join(' '),
+    [orbit]
+  );
 
   const pathRef = useRef<SVGPathElement>(null);
   const dotRef = useRef<SVGCircleElement>(null);
-  const t0 = useRef(performance.now());
-  const pts = useRef<{ x: number; y: number }[]>([]);
+  const gapRef = useRef<SVGRectElement>(null);
+  const polRef = useRef<[SVGTextElement | null, SVGTextElement | null]>([null, null]);
 
-  useEffect(() => {
-    let raf = 0;
-    t0.current = performance.now();
-    pts.current = [];
-    const CX = 410;
-    const CY = 240;
-    const maxR = 175;
-    const gapPx = 26;
-    // Crossing energy gain in drawing terms: the radius grows as sqrt(K).
-    const crossings = 44;
-    const frame = (now: number): void => {
-      const t = (now - t0.current) / 1000;
-      const period = 1 / Math.max(f, 1e-9);
-      const displayPeriod = Math.max(period * 1e-7, 0.02);
-      const elapsed = t % (displayPeriod * crossings);
-      const n = elapsed / displayPeriod;
-      const k = Math.max(n, 1);
-      const energy = (k / crossings) * eMax;
-      const v = Math.sqrt((2 * energy) / p.m);
-      const rPhys = gyroradius(p.m, v, p.q, b);
-      const rMaxPhys = gyroradius(p.m, vMax, p.q, b);
-      const rPx = Math.min((rPhys / Math.max(rMaxPhys, 1e-9)) * maxR, maxR);
-      const angle = n * Math.PI;
-      const side = Math.floor(n) % 2 === 0 ? -1 : 1;
-      const x = CX + side * gapPx / 2 + rPx * Math.cos(angle) * (side === -1 ? 1 : -1) * -1;
-      const y = CY + rPx * Math.sin(angle);
-      if (trail) {
-        pts.current.push({ x, y });
-        if (pts.current.length > 900) pts.current.shift();
-        if (pathRef.current) {
-          pathRef.current.setAttribute(
-            'd',
-            pts.current.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`).join(' ')
-          );
-        }
-      }
-      if (dotRef.current) {
-        dotRef.current.setAttribute('cx', x.toFixed(1));
-        dotRef.current.setAttribute('cy', y.toFixed(1));
-      }
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
-  }, [b, f, p, eMax, vMax, trail, rDee]);
+  useRafLoop((elapsed) => {
+    const t = elapsed % duration;
+    const i = sampleAt(orbit, t);
+    const a = orbit[i] as OrbitSample;
+    const bNext = orbit[Math.min(i + 1, orbit.length - 1)] as OrbitSample;
+    const span = bNext.t - a.t;
+    const u = span > 0 ? Math.min(1, (t - a.t) / span) : 0;
+    const x = a.x + (bNext.x - a.x) * u;
+    const y = a.y + (bNext.y - a.y) * u;
+    const s = a.s + (bNext.s - a.s) * u;
+    pathRef.current?.setAttribute('stroke-dashoffset', (total - s).toFixed(1));
+    dotRef.current?.setAttribute('cx', x.toFixed(1));
+    dotRef.current?.setAttribute('cy', y.toFixed(1));
+    // The RF reverses every half-turn: the dee the ion is heading for is negative.
+    const inGap = a.half === -1 && i < orbit.length - 2;
+    gapRef.current?.setAttribute('opacity', inGap ? '0.55' : '0.08');
+    const half = a.half === -1 ? (orbit[Math.max(0, i - 1)] as OrbitSample).half + 1 : a.half;
+    const towardsRight = half % 2 === 1;
+    const [l, r] = polRef.current;
+    if (l) l.textContent = towardsRight ? '+' : '−';
+    if (r) r.textContent = towardsRight ? '−' : '+';
+  }, true);
 
-  const R = 190;
+  const left = `M${CYC.cx - CYC.gap / 2} ${CYC.cy - R} A${R} ${R} 0 0 0 ${CYC.cx - CYC.gap / 2} ${CYC.cy + R} Z`;
+  const right = `M${CYC.cx + CYC.gap / 2} ${CYC.cy - R} A${R} ${R} 0 0 1 ${CYC.cx + CYC.gap / 2} ${CYC.cy + R} Z`;
+  const exit = orbit[orbit.length - 1] as OrbitSample;
+  const field = Array.from({ length: 12 }, (_, i) => ({ x: 640 + (i % 4) * 34, y: 104 + Math.floor(i / 4) * 30 }));
+
   return (
-    <svg viewBox="0 0 820 480" className="svg-lab" preserveAspectRatio="xMidYMid meet">
+    <svg viewBox="0 0 820 470" className="svg-lab" preserveAspectRatio="xMidYMid meet">
       <SvgDefs />
-      <circle cx={410} cy={240} r={R} fill="none" stroke="#3a4c60" strokeWidth={1.2} strokeDasharray="5 5" />
-      <path d={`M${410 - 13} ${240 - R} A${R} ${R} 0 0 0 ${410 - 13} ${240 + R} Z`} fill="#9d8cff" opacity={0.08} stroke="#9d8cff" strokeOpacity={0.45} />
-      <path d={`M${410 + 13} ${240 - R} A${R} ${R} 0 0 1 ${410 + 13} ${240 + R} Z`} fill="#9d8cff" opacity={0.08} stroke="#9d8cff" strokeOpacity={0.45} />
-      <rect x={410 - 13} y={240 - R} width={26} height={R * 2} fill="#04070d" />
-      <text x={300} y={60} fontSize={11} fill="#9d8cff">D₁</text>
-      <text x={500} y={60} fontSize={11} fill="#9d8cff">D₂</text>
-      {Array.from({ length: 9 }, (_, i) => (
+      <defs>
+        <radialGradient id="cyc-dee" cx="50%" cy="50%" r="60%">
+          <stop offset="0%" stopColor="#9d8cff" stopOpacity={0.05} />
+          <stop offset="100%" stopColor="#9d8cff" stopOpacity={0.2} />
+        </radialGradient>
+      </defs>
+      {/* The pole piece of the magnet, behind the dees. */}
+      <circle cx={CYC.cx} cy={CYC.cy} r={R + 14} fill="#0b1220" stroke="#3a4c60" strokeWidth={1.2} strokeDasharray="5 5" />
+      <path d={left} fill="url(#cyc-dee)" stroke="#9d8cff" strokeOpacity={0.55} />
+      <path d={right} fill="url(#cyc-dee)" stroke="#9d8cff" strokeOpacity={0.55} />
+      <rect ref={gapRef} x={CYC.cx - CYC.gap / 2} y={CYC.cy - R} width={CYC.gap} height={2 * R} fill="#ffd257" opacity={0.08} />
+      <text x={CYC.cx - R * 0.55} y={CYC.cy - R * 0.62} fontSize={11} fill="#9d8cff" textAnchor="middle">D₁</text>
+      <text x={CYC.cx + R * 0.55} y={CYC.cy - R * 0.62} fontSize={11} fill="#9d8cff" textAnchor="middle">D₂</text>
+      <text ref={(el) => { polRef.current[0] = el; }} x={CYC.cx - R * 0.55} y={CYC.cy + R * 0.7} fontSize={16} fill="#cfdcea" textAnchor="middle">−</text>
+      <text ref={(el) => { polRef.current[1] = el; }} x={CYC.cx + R * 0.55} y={CYC.cy + R * 0.7} fontSize={16} fill="#cfdcea" textAnchor="middle">+</text>
+      <circle cx={CYC.cx} cy={orbit[0]?.y ?? CYC.cy} r={4} fill="#25d0ee" opacity={0.8}>
+        <title>Ion source</title>
+      </circle>
+
+      {/* B out of the page, beside the machine rather than on top of it. */}
+      {field.map((pt, i) => (
         <g key={i}>
-          <circle cx={120 + (i % 5) * 34} cy={400 + Math.floor(i / 5) * 30} r={6} fill="none" stroke="#7dd3fc" strokeWidth={1.1} />
-          <circle cx={120 + (i % 5) * 34} cy={400 + Math.floor(i / 5) * 30} r={1.6} fill="#7dd3fc" />
+          <circle cx={pt.x} cy={pt.y} r={6} fill="none" stroke="#7dd3fc" strokeWidth={1.1} />
+          <circle cx={pt.x} cy={pt.y} r={1.6} fill="#7dd3fc" />
         </g>
       ))}
-      <text x={120} y={392} fontSize={9.5} fill="#7dd3fc">B out of the page</text>
-      <path ref={pathRef} d="" fill="none" stroke="#ffd257" strokeWidth={1.6} opacity={0.85} />
-      <circle ref={dotRef} r={6} fill="#ffd257" style={{ filter: 'drop-shadow(0 0 8px #ffd25799)' }} />
-      <path d="M410 440 V466 M470 440 V466" className="lead" stroke="#8497ad" />
-      <text x={440} y={478} textAnchor="middle" fontSize={9.5} className="label-mono">RF {(f / 1e6).toFixed(2)} MHz</text>
-      <text x={410} y={36} textAnchor="middle" fontSize={13} fill="#eaf1f8" fontWeight={600}>
+      <text x={640} y={88} fontSize={9.5} fill="#7dd3fc">B out of the page</text>
+
+      <path
+        ref={pathRef}
+        d={d}
+        fill="none"
+        stroke="#ffd257"
+        strokeWidth={1.6}
+        strokeLinejoin="round"
+        opacity={trail ? 0.85 : 0}
+        strokeDasharray={`${total.toFixed(1)} ${total.toFixed(1)}`}
+        strokeDashoffset={reduced ? 0 : total}
+      />
+      <circle ref={dotRef} cx={exit.x} cy={exit.y} r={6} fill="#ffd257" style={{ filter: 'drop-shadow(0 0 8px #ffd25799)' }} />
+      <text x={exit.x} y={exit.y + (exit.y < CYC.cy ? -10 : 18)} fontSize={9.5} textAnchor="middle" className="label-mono">to target</text>
+
+      {/* The RF oscillator drives the two dees. */}
+      <path d={`M${CYC.cx - CYC.gap / 2 - 6} ${CYC.cy + R - 4} V${CYC.cy + R + 30} M${CYC.cx + CYC.gap / 2 + 6} ${CYC.cy + R - 4} V${CYC.cy + R + 30}`} className="lead" stroke="#8497ad" />
+      <text x={CYC.cx} y={CYC.cy + R + 44} textAnchor="middle" fontSize={9.5} className="label-mono">RF {(f / 1e6).toFixed(2)} MHz</text>
+
+      <text x={410} y={30} textAnchor="middle" fontSize={13} fill="#eaf1f8" fontWeight={600}>
         {p.label} · f = {(f / 1e6).toFixed(3)} MHz · gap voltage {(vGap / 1000).toFixed(0)} kV
       </text>
-      <text x={410} y={55} textAnchor="middle" fontSize={11} fill="#8497ad" fontFamily="ui-monospace, monospace">
-        B = {b.toFixed(2)} T · R = {(rDee * 100).toFixed(0)} cm · K max = {(jToEv(eMax) / 1e6).toFixed(2)} MeV
+      <text x={410} y={48} textAnchor="middle" fontSize={11} fill="#8497ad" fontFamily="ui-monospace, monospace">
+        B = {b.toFixed(2)} T · R = {rDeeCm.toFixed(0)} cm · K max = {(jToEv(eMax) / 1e6).toFixed(2)} MeV
       </text>
-      {/* The magnet supply, the dee voltage and the beam trace are on the machine. */}
-      <Knob
-        spec={control('b', 'slider')}
-        params={params}
-        onChange={(key, value) => set(key, value)}
-        x={120}
-        y={430}
-        radius={19}
-        label="Magnetic field B — turn the magnet supply"
-      />
-      <Knob
-        spec={control('vGap', 'slider')}
-        params={params}
-        onChange={(key, value) => set(key, value)}
-        x={250}
-        y={430}
-        radius={19}
-        label="Gap voltage V — turn the oscillator"
-      />
+      <text x={612} y={226} fontSize={10} fill="#8497ad">
+        <tspan x={612}>{realCrossings} gap crossings to reach R</tspan>
+        <tspan x={612} dy={14}>{realCrossings > MAX_HALVES ? `drawn as ${MAX_HALVES}, radii ∝ √crossings` : 'every crossing drawn'}</tspan>
+        <tspan x={612} dy={14}>each half-turn takes T/2 = {formatSI(0.5 / f, 3)}s</tspan>
+      </text>
+
+      <Knob spec={control('b', 'slider')} params={params} onChange={(key, value) => set(key, value)} x={80} y={150} radius={19} label="Magnetic field B — turn the magnet supply" />
+      <Knob spec={control('vGap', 'slider')} params={params} onChange={(key, value) => set(key, value)} x={80} y={270} radius={19} label="Gap voltage V — turn the oscillator" />
+      <Knob spec={control('rDee', 'slider')} params={params} onChange={(key, value) => set(key, value)} x={80} y={390} radius={19} label="Dee radius R" />
       <StageSwitch
-        spec={control('trail', 'toggle')}
+        spec={control('trail', 'toggle')} states={{ on: 'ON', off: 'OFF' }}
         params={params}
         onChange={(key, value) => set(key, value)}
         x={700}
-        y={430}
+        y={404}
         label="Show the spiral trajectory"
       />
     </svg>

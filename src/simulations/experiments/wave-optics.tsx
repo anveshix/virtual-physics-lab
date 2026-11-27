@@ -8,6 +8,7 @@ import { mergeIssues, validatePositive, validateRange } from '@/physics-engine/v
 import { formatSI } from '@/utils/format';
 import { col, num, ro, singleSeriesGraph } from './_shared';
 import { Knob, StageSwitch, type StageApi } from '@/components/controls/StageKit';
+import { displayWavelength, makeDiffractionScene } from '@/lab/scenes/diffraction';
 
 import { meta } from './wave-optics.meta';
 
@@ -228,22 +229,6 @@ function Stage({ params, set, control }: StageApi) {
         d = {m.sepMm.toFixed(2)} mm · a = {m.widthUm.toFixed(0)} µm
       </text>
 
-      {/* Wavefronts spreading from each slit. */}
-      {[-1, 1].map((s) =>
-        Array.from({ length: 6 }, (_, k) => (
-          <circle
-            key={`${s}-${k}`}
-            cx={slitX}
-            cy={axisY + (s * gapPx) / 2}
-            r={40 + k * 46}
-            fill="none"
-            stroke={beam}
-            strokeWidth={0.9}
-            opacity={m.coherent ? 0.2 : 0.08}
-          />
-        ))
-      )}
-
       {/* The fringe pattern on the screen. */}
       <rect x={screenX} y={axisY - 20 * mmToPx} width={28} height={40 * mmToPx} fill="#0b1119" stroke="#3a5069" strokeWidth={1.2} />
       <g ref={patternRef}>
@@ -287,10 +272,48 @@ function Stage({ params, set, control }: StageApi) {
       <Knob spec={control('distance', 'slider')} params={params} onChange={set} x={360} y={388} radius={19} label="Slit-to-screen distance — turn the dial" />
       <Knob spec={control('width', 'slider')} params={params} onChange={set} x={490} y={388} radius={19} label="Width of each slit — turn the dial" />
       <Knob spec={control('probe', 'slider')} params={params} onChange={set} x={700} y={100} radius={19} label="Probe position on the screen — turn the dial" />
-      <StageSwitch spec={control('coherent', 'toggle')} params={params} onChange={set} x={620} y={388} label="Coherence" />
+      <StageSwitch spec={control('coherent', 'toggle')} states={{ on: 'COHERENT', off: 'INCOHERENT' }} params={params} onChange={set} x={620} y={388} label="Coherence" />
     </svg>
   );
 }
+
+/**
+ * Plane waves reach the double slit, wavelets open from both slits, and the
+ * diffracted wavefronts are lit by the model's own intensity — so bright spokes
+ * run to the bright fringes. With incoherent sources the two slits' phases
+ * scramble and only the envelope survives.
+ */
+const scene = makeDiffractionScene({
+  label: (params) => {
+    const m = model(params);
+    return m.coherent
+      ? `Wavefronts from two coherent slits ${m.sepMm.toFixed(2)} millimetre apart interfere; bright lanes reach the screen every ${(m.beta * 1000).toFixed(3)} millimetre.`
+      : 'Wavefronts from two incoherent sources: their phase difference keeps jumping, so no stationary fringes form.';
+  },
+  layout: (params) => {
+    const m = model(params);
+    const rgb = wavelengthToRgb(m.lambdaNm);
+    const gapPx = Math.max(m.sepMm * 26, 8);
+    const mmToPx = 6.6;
+    return {
+      apertureX: 260,
+      axisY: 250,
+      screenX: 660,
+      screenHalf: 20 * mmToPx,
+      sources: [-gapPx / 2, gapPx / 2],
+      sourceX: 128,
+      beamHalf: 18,
+      wavelengthPx: displayWavelength(m.lambdaNm),
+      color: `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`,
+      coherent: m.coherent,
+      intensityAt: (px) => {
+        const y = px / mmToPx / 1000;
+        const env = singleSlitIntensity(y, m.lambda, m.distance, m.a);
+        return m.coherent ? doubleSlitIntensity(y, m.lambda, m.distance, m.d) * env : env * 0.5;
+      }
+    };
+  }
+});
 
 export default function WaveOpticsExperiment() {
   return (
@@ -298,6 +321,7 @@ export default function WaveOpticsExperiment() {
       definition={definition}
       education={education}
       compute={compute}
+      scene={scene}
       renderStage={(api) => <Stage {...api} />}
       viewportOverlay={(params) => {
         const m = model(params);

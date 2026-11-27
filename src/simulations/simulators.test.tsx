@@ -185,6 +185,20 @@ describe.each(cases)('%s', (slug, entry) => {
     cleanup();
   });
 
+  it('puts every control it keeps off the dock somewhere on the apparatus', () => {
+    // A control flagged `onStage` is filtered out of the dock, so if the stage
+    // forgets to draw it the student has no way to reach it at all. Seven
+    // toggles across six experiments once shipped exactly like that.
+    const { container } = mount(entry.mod.default);
+    const stage = container.querySelector('svg.svg-lab');
+    const offDock = definition.controls.filter((c) => c.onStage || ('stage' in c && c.stage));
+    const missing = offDock
+      .filter((c) => !stage?.querySelector(`[data-control="${c.key}"]`))
+      .map((c) => c.key);
+    expect(missing, `${slug}: controls kept off the dock but not drawn on the apparatus`).toEqual([]);
+    cleanup();
+  });
+
   it('records a trial in the notebook and clears it again', async () => {
     const user = userEvent.setup();
     mount(entry.mod.default);

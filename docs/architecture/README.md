@@ -32,7 +32,7 @@ all additive rather than rewrites.
 Every `src/simulations/experiments/<slug>.tsx` exports `meta`, `definition`,
 `education`, `compute`, `renderStage` and a default component. The meta is the
 single source of truth for identity; drift is a test failure. See
-`HANDOVER.md §2` for the full contract and `ohms-law.tsx` for the reference.
+`docs/HANDOVER.md` §2 for the full contract and `ohms-law.tsx` for the reference.
 
 ## The circuit bench (2.0)
 
@@ -65,6 +65,15 @@ component does not move the student's wiring.
 gesture: press a socket to pick a lead up, press a second to put it down. There
 is **one** code path for pointer, touch and keyboard, which is why the two can
 never drift apart. See `docs/accessibility/README.md`.
+
+## The canvas layer
+
+Physics entities that move every frame are painted on a `<canvas>` in a
+`requestAnimationFrame` loop; the apparatus and every control stay SVG and keep
+their accessibility tree and their audit selectors. `PhysicsEngine` holds state
+in SI units with a pure integrator; `CanvasStage` owns the loop, the device
+pixel ratio and the resize; `SceneLayer` bridges live React state into the loop
+through refs so no frame waits on a re-render. See `docs/canvas/README.md`.
 
 ## Motion and audio
 

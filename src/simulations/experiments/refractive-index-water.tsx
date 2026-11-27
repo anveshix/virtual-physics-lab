@@ -5,7 +5,7 @@ import { ViewPill, SvgDefs } from '@/components/shell/Viewport';
 import { MirrorSvg, Ray } from '@/components/instruments/Instruments';
 import { mergeIssues, validatePositive, validateRange } from '@/physics-engine/validation';
 import { col, num, ro, str, singleSeriesGraph } from './_shared';
-import { DragY, Knob, type StageApi } from '@/components/controls/StageKit';
+import { DragY, Knob, StageSwitch, type StageApi } from '@/components/controls/StageKit';
 
 import { meta } from './refractive-index-water.meta';
 
@@ -216,6 +216,7 @@ function Stage({ params, set, control }: StageApi) {
       </text>
 
       <Knob spec={control('radius', 'slider')} params={params} onChange={set} x={120} y={90} radius={20} label="Radius of curvature of the mirror — turn the dial" />
+      <StageSwitch spec={control('filled', 'toggle')} params={params} onChange={set} x={130} y={300} label="Liquid poured into the mirror" states={{ on: 'FILLED', off: 'DRY' }} />
       {/* The needle clamp is the control: slide it to remove the parallax. */}
       <DragY
         spec={control('needle', 'slider')}

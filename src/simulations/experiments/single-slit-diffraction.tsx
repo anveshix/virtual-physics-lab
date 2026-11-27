@@ -8,6 +8,7 @@ import { mergeIssues, validatePositive, validateRange } from '@/physics-engine/v
 import { formatSI } from '@/utils/format';
 import { col, num, ro, singleSeriesGraph } from './_shared';
 import { Knob, type StageApi } from '@/components/controls/StageKit';
+import { displayWavelength, makeDiffractionScene } from '@/lab/scenes/diffraction';
 
 import { meta } from './single-slit-diffraction.meta';
 
@@ -242,12 +243,43 @@ function Stage({ params, set, control }: StageApi) {
   );
 }
 
+/**
+ * Plane waves reach the slit and spread out beyond it; each piece of each
+ * wavefront is lit by the single-slit intensity where its direction meets the
+ * screen, so the wide central lane and the faint side lanes are visible in
+ * the wave itself. Narrow the slit and the lanes fan out.
+ */
+const scene = makeDiffractionScene({
+  label: (params) => {
+    const m = model(params);
+    return `Plane waves of ${m.lambdaNm} nanometre pass a ${m.widthUm.toFixed(0)} micrometre slit and spread; the central bright lane is ${(m.centralWidth * 1000).toFixed(2)} millimetre wide on the screen.`;
+  },
+  layout: (params) => {
+    const m = model(params);
+    const rgb = wavelengthToRgb(m.lambdaNm);
+    const mmToPx = 3.6;
+    return {
+      apertureX: 250,
+      axisY: 250,
+      screenX: 660,
+      screenHalf: 40 * mmToPx,
+      sources: [0],
+      sourceX: 128,
+      beamHalf: 18,
+      wavelengthPx: displayWavelength(m.lambdaNm),
+      color: `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`,
+      intensityAt: (px) => singleSlitIntensity(px / mmToPx / 1000, m.lambda, m.distance, m.a)
+    };
+  }
+});
+
 export default function SingleSlitDiffractionExperiment() {
   return (
     <PhysicsExperiment
       definition={definition}
       education={education}
       compute={compute}
+      scene={scene}
       renderStage={(api) => <Stage {...api} />}
       viewportOverlay={(params) => {
         const m = model(params);

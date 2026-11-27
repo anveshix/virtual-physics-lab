@@ -157,7 +157,7 @@ function Stage({ params, set, control }: StageApi) {
       </text>
       {/* The commutator switch that reverses the current through the wire. */}
       <StageSwitch
-        spec={control('reverse', 'toggle')}
+        spec={control('reverse', 'toggle')} states={{ on: 'REVERSED', off: 'NORMAL' }}
         params={params}
         onChange={(key, value) => set(key, value)}
         x={400}

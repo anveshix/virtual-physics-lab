@@ -6,7 +6,7 @@ import { LensSvg, Ray } from '@/components/instruments/Instruments';
 import { lensesInContact } from '@/physics-engine/optics';
 import { mergeIssues, validatePositive, validateRange } from '@/physics-engine/validation';
 import { col, num, ro, str, singleSeriesGraph } from './_shared';
-import { DragY, Knob, type StageApi } from '@/components/controls/StageKit';
+import { DragY, Knob, StageSwitch, type StageApi } from '@/components/controls/StageKit';
 
 import { meta } from './refractive-index-liquid-lens.meta';
 
@@ -246,7 +246,8 @@ function Stage({ params, set, control }: StageApi) {
       </text>
 
       <Knob spec={control('f1', 'slider')} params={params} onChange={set} x={110} y={90} radius={20} label="Focal length of the convex lens — turn the dial" />
-      <Knob spec={control('roc', 'slider')} params={params} onChange={set} x={240} y={90} radius={18} label="Radius of curvature of the lower face — turn the dial" />
+      <Knob spec={control('roc', 'slider')} params={params} onChange={set} x={290} y={90} radius={18} label="Radius of curvature of the lower face — turn the dial" />
+      <StageSwitch spec={control('withLiquid', 'toggle')} params={params} onChange={set} x={130} y={300} label="Liquid film between lens and mirror" states={{ on: 'LIQUID ADDED', off: 'DRY' }} />
       {/* The needle clamp is the control: slide it to remove the parallax. */}
       <DragY
         spec={control('needle', 'slider')}

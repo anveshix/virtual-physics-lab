@@ -113,6 +113,23 @@ export function snellRefraction(incidenceDeg: number, n1: number, n2: number): n
   return Math.abs(s) > 1 ? Number.NaN : radToDeg(Math.asin(s));
 }
 
+/**
+ * Fresnel reflectance for unpolarised light at a plane boundary n1 → n2:
+ * the fraction of the incident power that is reflected, the mean of the s- and
+ * p-polarised reflectances. Beyond the critical angle every bit of it is.
+ */
+export function fresnelReflectance(incidenceDeg: number, n1: number, n2: number): number {
+  const i = degToRad(incidenceDeg);
+  const sinT = (n1 / n2) * Math.sin(i);
+  if (!Number.isFinite(sinT)) return Number.NaN;
+  if (Math.abs(sinT) >= 1) return 1;
+  const ci = Math.cos(i);
+  const ct = Math.sqrt(1 - sinT * sinT);
+  const rs = (n1 * ci - n2 * ct) / (n1 * ci + n2 * ct);
+  const rp = (n2 * ci - n1 * ct) / (n2 * ci + n1 * ct);
+  return (rs * rs + rp * rp) / 2;
+}
+
 /** Critical angle in degrees for n1 → n2 (only defined when n1 > n2). */
 export function criticalAngle(n1: number, n2 = 1): number {
   if (n1 <= n2) return Number.NaN;
