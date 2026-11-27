@@ -3,11 +3,12 @@ import type { ModelOutput } from '@/components/shell/PhysicsExperiment';
 import { PhysicsExperiment } from '@/components/shell/PhysicsExperiment';
 import { ViewPill, SvgDefs } from '@/components/shell/Viewport';
 import { AngleArc, Ray } from '@/components/instruments/Instruments';
-import { criticalAngle, snellRefraction } from '@/physics-engine/optics';
+import { criticalAngle, fresnelReflectance, snellRefraction } from '@/physics-engine/optics';
 import { degToRad } from '@/physics-engine/units';
 import { mergeIssues, validatePositive, validateRange } from '@/physics-engine/validation';
 import { col, num, ro, str, singleSeriesGraph } from './_shared';
-import { Knob, StageSegmented, type StageApi } from '@/components/controls/StageKit';
+import { Knob, StageSegmented, StageSwitch, type StageApi } from '@/components/controls/StageKit';
+import { chainRays, makeRayScene, type SceneRay } from '@/lab/scenes/rays';
 
 import { meta } from './reflection-refraction.meta';
 
@@ -156,13 +157,15 @@ function compute(params: ParamValues): ModelOutput {
   };
 }
 
-function Stage({ params, set, control }: StageApi) {
+/**
+ * The construction, in stage coordinates — one function so the SVG rays and
+ * the light packets riding them are the same lines.
+ */
+function rayGeometry(params: ParamValues) {
   const m = model(params);
   const cx = 410;
   const cy = 250;
   const L = 190;
-  const showReflected = params.showReflected !== false;
-
   // The denser medium fills the lower half unless the ray comes from inside it.
   const iRad = degToRad(m.i);
   const inFrom = m.reversed
@@ -175,6 +178,12 @@ function Stage({ params, set, control }: StageApi) {
   const refracted = m.reversed
     ? { x: cx + Math.sin(rRad) * L, y: cy - Math.cos(rRad) * L }
     : { x: cx + Math.sin(rRad) * L, y: cy + Math.cos(rRad) * L };
+  return { m, cx, cy, L, inFrom, reflected, refracted };
+}
+
+function Stage({ params, set, control }: StageApi) {
+  const { m, cx, cy, inFrom, reflected, refracted } = rayGeometry(params);
+  const showReflected = params.showReflected !== false;
 
   return (
     <svg viewBox="0 0 820 470" className="svg-lab" preserveAspectRatio="xMidYMid meet">
@@ -224,9 +233,46 @@ function Stage({ params, set, control }: StageApi) {
 
       <Knob spec={control('incidence', 'slider')} params={params} onChange={set} x={120} y={92} radius={22} label="Angle of incidence — turn the dial" />
       <StageSegmented spec={control('medium', 'segmented')} params={params} onChange={set} x={620} y={92} segmentWidth={76} label="Denser medium" />
+      <StageSwitch spec={control('reversed', 'toggle')} params={params} onChange={set} x={700} y={150} label="Send the ray from the denser side" states={{ on: 'DENSER → RARER', off: 'RARER → DENSER' }} />
+      <StageSwitch spec={control('showReflected', 'toggle')} params={params} onChange={set} x={700} y={212} label="Show the reflected ray" states={{ on: 'ON', off: 'OFF' }} />
     </svg>
   );
 }
+
+/**
+ * Packets ride the incident, reflected and refracted rays. In the denser
+ * medium they slow to c/n and crowd to λ/n, and the reflected ray is as bright
+ * as the Fresnel reflectance says — faint at normal incidence, all of the
+ * light past the critical angle.
+ */
+const scene = makeRayScene({
+  glow: true,
+  speed: 150,
+  spacing: 54,
+  label: (params) => {
+    const { m } = rayGeometry(params);
+    const R = fresnelReflectance(m.i, m.n1, m.n2);
+    return m.tir
+      ? `Total internal reflection: all the light is reflected back into the ${m.medium.label.toLowerCase()}.`
+      : `Light crosses from n = ${m.n1.toFixed(2)} to n = ${m.n2.toFixed(2)}, changing speed by a factor ${(m.n1 / m.n2).toFixed(3)}; about ${(R * 100).toFixed(1)} per cent is reflected.`;
+  },
+  rays: (params) => {
+    const { m, cx, cy, inFrom, reflected, refracted } = rayGeometry(params);
+    const centre = { x: cx, y: cy };
+    const incident = chainRays([inFrom, centre], [{ index: m.n1, color: '#ffd257' }]);
+    const out: SceneRay[] = incident.rays.map((r) => ({ ...r, terminal: false }));
+    const R = fresnelReflectance(m.i, m.n1, m.n2);
+    if (params.showReflected !== false || m.tir) {
+      // Displayed brightness follows R, lifted so a 4 % reflection is still visible.
+      out.push(...chainRays([centre, reflected], [{ index: m.n1, color: '#ffb454', weight: m.tir ? 1 : 0.25 + 0.75 * Math.sqrt(R) }], incident.opticalLength).rays);
+    }
+    if (!m.tir && Number.isFinite(m.r)) {
+      out.push(...chainRays([centre, refracted], [{ index: m.n2, color: '#6ee7ff', weight: 0.35 + 0.65 * (1 - R) }], incident.opticalLength).rays);
+    }
+    return out;
+  },
+  disclosure: 'Light packets are a visual construct — in the denser medium they slow to c/n and crowd to λ/n; reflected brightness follows the Fresnel reflectance.'
+});
 
 export default function ReflectionRefractionExperiment() {
   return (
@@ -234,6 +280,7 @@ export default function ReflectionRefractionExperiment() {
       definition={definition}
       education={education}
       compute={compute}
+      scene={scene}
       renderStage={(api) => <Stage {...api} />}
       viewportOverlay={(params) => {
         const m = model(params);

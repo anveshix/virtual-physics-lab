@@ -13,7 +13,8 @@ import {
 import { degToRad } from '@/physics-engine/units';
 import { mergeIssues, validateRange } from '@/physics-engine/validation';
 import { col, num, ro, singleSeriesGraph } from './_shared';
-import { Knob, type StageApi } from '@/components/controls/StageKit';
+import { Knob, StageSwitch, type StageApi } from '@/components/controls/StageKit';
+import { chainRays, makeRayScene, type SceneRay } from '@/lab/scenes/rays';
 
 import { meta } from './prism-dispersion.meta';
 
@@ -169,25 +170,107 @@ function compute(params: ParamValues): ModelOutput {
   };
 }
 
-function Stage({ params, set, control }: StageApi) {
+type Pt = { x: number; y: number };
+
+/** Where the ray p + t·u meets the segment a→b, or null if it misses it. */
+function hitSegment(p: Pt, u: Pt, a: Pt, b: Pt): { point: Pt; s: number } | null {
+  const e = { x: b.x - a.x, y: b.y - a.y };
+  const denom = u.x * e.y - u.y * e.x;
+  if (Math.abs(denom) < 1e-9) return null;
+  const w = { x: a.x - p.x, y: a.y - p.y };
+  const t = (w.x * e.y - w.y * e.x) / denom;
+  const sAlong = (w.x * u.y - w.y * u.x) / denom;
+  if (!(t > 0) || sAlong < -1e-6 || sAlong > 1 + 1e-6) return null;
+  return { point: { x: p.x + u.x * t, y: p.y + u.y * t }, s: sAlong };
+}
+
+const dir = (a: number): Pt => ({ x: Math.cos(a), y: Math.sin(a) });
+const along = (p: Pt, a: number, len: number): Pt => ({ x: p.x + Math.cos(a) * len, y: p.y + Math.sin(a) * len });
+
+export interface PrismLine {
+  nm: number;
+  n: number;
+  colour: string;
+  /** Path inside the glass, from the first face to wherever it meets glass again. */
+  inside: { from: Pt; to: Pt };
+  /** The emergent ray — absent when the light is totally internally reflected. */
+  out?: { from: Pt; to: Pt };
+  /** True when the ray meets the second face beyond the critical angle. */
+  tir: boolean;
+}
+
+/**
+ * The whole prism construction, in stage coordinates.
+ *
+ * Shared by the SVG apparatus and the light-packet scene so the two can never
+ * disagree. Angles are screen angles (y down). With the apex up, the left
+ * face's inward normal points at A/2 below the horizontal, so:
+ *
+ *   incident ray   A/2 − i        (rising towards the face)
+ *   inside glass   A/2 − r₁       (bent towards the normal)
+ *   emergent ray   e − A/2        (bent towards the base)
+ *
+ * and the emergent ray is turned from the incident one by exactly
+ * i + e − A = δ. The ray inside the glass is traced to the second face it
+ * actually meets, not drawn to a fixed length.
+ */
+export function prismGeometry(params: ParamValues) {
   const m = model(params);
-  const apexRad = degToRad(m.apex);
-  // Prism drawn as an isosceles triangle with its apex angle A at the top.
-  const half = 150 * Math.tan(apexRad / 2);
+  const A = degToRad(m.apex);
+  const half = 150 * Math.tan(A / 2);
   const apexPt = { x: 410, y: 190 };
   const baseL = { x: apexPt.x - half, y: apexPt.y + 150 };
   const baseR = { x: apexPt.x + half, y: apexPt.y + 150 };
-
-  // Hit point on the left face, one third down from the apex.
+  // Point of incidence on the left face, a little over half-way down.
   const hit = { x: apexPt.x + (baseL.x - apexPt.x) * 0.55, y: apexPt.y + (baseL.y - apexPt.y) * 0.55 };
-  // Outward normal of the left face.
-  const faceAngle = Math.atan2(baseL.y - apexPt.y, baseL.x - apexPt.x);
-  const normalAngle = faceAngle - Math.PI / 2;
 
-  const inDir = normalAngle + Math.PI - degToRad(m.i);
-  const inStart = { x: hit.x - Math.cos(inDir) * 160, y: hit.y - Math.sin(inDir) * 160 };
+  const normalIn = A / 2;
+  const inDir = A / 2 - degToRad(m.i);
+  const inStart = along(hit, inDir + Math.PI, 170);
 
-  const lines = params.dispersion ? SPECTRUM : [{ nm: m.lambda, name: 'ray' }];
+  const spectrum = params.dispersion ? SPECTRUM : [{ nm: m.lambda, name: 'ray' }];
+  const lines: PrismLine[] = [];
+  for (const line of spectrum) {
+    const n = indexAt(line.nm);
+    const r1 = snellRefraction(m.i, 1, n);
+    if (!Number.isFinite(r1)) continue;
+    const rgb = wavelengthToRgb(line.nm);
+    const colour = params.dispersion ? `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})` : '#ffd257';
+
+    const glassDir = A / 2 - degToRad(r1);
+    const exitFace = hitSegment(hit, dir(glassDir), apexPt, baseR);
+    if (!exitFace) {
+      // Steep enough to reach the base instead: draw it there and stop.
+      const base = hitSegment(hit, dir(glassDir), baseL, baseR);
+      lines.push({ nm: line.nm, n, colour, inside: { from: hit, to: base?.point ?? along(hit, glassDir, 150) }, tir: false });
+      continue;
+    }
+    const r2 = m.apex - r1;
+    const e = snellRefraction(r2, n, 1);
+    if (!Number.isFinite(e)) {
+      lines.push({ nm: line.nm, n, colour, inside: { from: hit, to: exitFace.point }, tir: true });
+      continue;
+    }
+    const outDir = degToRad(e) - A / 2;
+    lines.push({
+      nm: line.nm,
+      n,
+      colour,
+      inside: { from: hit, to: exitFace.point },
+      out: { from: exitFace.point, to: along(exitFace.point, outDir, 230) },
+      tir: false
+    });
+  }
+
+  return { m, A, apexPt, baseL, baseR, hit, normalIn, inDir, inStart, lines };
+}
+
+function Stage({ params, set, control }: StageApi) {
+  const g = prismGeometry(params);
+  const { m, apexPt, baseL, baseR, hit, normalIn, inDir, inStart, lines } = g;
+  const main = lines.find((l) => l.nm === m.lambda) ?? lines[0];
+  const normalOutDeg = (normalIn * 180) / Math.PI + 180;
+  const inDeg = (inDir * 180) / Math.PI;
 
   return (
     <svg viewBox="0 0 820 470" className="svg-lab" preserveAspectRatio="xMidYMid meet">
@@ -205,58 +288,41 @@ function Stage({ params, set, control }: StageApi) {
 
       {/* Normal at the point of incidence. */}
       <line
-        x1={hit.x - Math.cos(normalAngle) * 60}
-        y1={hit.y - Math.sin(normalAngle) * 60}
-        x2={hit.x + Math.cos(normalAngle) * 60}
-        y2={hit.y + Math.sin(normalAngle) * 60}
+        x1={hit.x - Math.cos(normalIn) * 60}
+        y1={hit.y - Math.sin(normalIn) * 60}
+        x2={hit.x + Math.cos(normalIn) * 60}
+        y2={hit.y + Math.sin(normalIn) * 60}
         className="normal-line"
       />
+      {/* Normal at the point of emergence, for the ray being measured. */}
+      {main?.out ? (
+        <line
+          x1={main.out.from.x - Math.cos(Math.PI - normalIn) * 50}
+          y1={main.out.from.y - Math.sin(Math.PI - normalIn) * 50}
+          x2={main.out.from.x + Math.cos(Math.PI - normalIn) * 50}
+          y2={main.out.from.y + Math.sin(Math.PI - normalIn) * 50}
+          className="normal-line"
+        />
+      ) : null}
+
+      {/* The undeviated continuation, so the deviation is visible as an angle. */}
+      <line x1={hit.x} y1={hit.y} x2={hit.x + Math.cos(inDir) * 360} y2={hit.y + Math.sin(inDir) * 360} className="dim-line" />
 
       <Ray from={inStart} to={hit} color="#ffffff" width={2} />
 
-      {lines.map((line) => {
-        const n = indexAt(line.nm);
-        const r1 = snellRefraction(m.i, 1, n);
-        if (!Number.isFinite(r1)) return null;
-        const r2 = m.apex - r1;
-        const e = snellRefraction(r2, n, 1);
-        const rgb = wavelengthToRgb(line.nm);
-        const colour = params.dispersion ? `rgb(${rgb.r}, ${rgb.g}, ${rgb.b})` : '#ffd257';
+      {lines.map((line) => (
+        <g key={line.nm}>
+          <Ray from={line.inside.from} to={line.inside.to} color={line.colour} width={1.6} />
+          {line.out ? <Ray from={line.out.from} to={line.out.to} color={line.colour} width={1.8} /> : null}
+          {line.tir ? (
+            <text x={line.inside.to.x + 10} y={line.inside.to.y} fontSize={9.5} fill="#ff6b7d">
+              TIR
+            </text>
+          ) : null}
+        </g>
+      ))}
 
-        // Inside the glass the ray runs at r1 from the normal of the first face.
-        const insideDir = normalAngle + degToRad(r1);
-        const exit = { x: hit.x + Math.cos(insideDir) * 190, y: hit.y + Math.sin(insideDir) * 190 };
-
-        if (!Number.isFinite(e)) {
-          return <Ray key={line.nm} from={hit} to={exit} color={colour} width={1.6} />;
-        }
-        // Emergent ray, deviated from the incident direction by δ.
-        const outDir = inDir + degToRad(m.i + e - m.apex);
-        const out = { x: exit.x + Math.cos(outDir) * 200, y: exit.y + Math.sin(outDir) * 200 };
-        return (
-          <g key={line.nm}>
-            <Ray from={hit} to={exit} color={colour} width={1.6} />
-            <Ray from={exit} to={out} color={colour} width={1.8} />
-          </g>
-        );
-      })}
-
-      {/* The undeviated continuation, so the deviation is visible as an angle. */}
-      <line
-        x1={hit.x}
-        y1={hit.y}
-        x2={hit.x + Math.cos(inDir) * 340}
-        y2={hit.y + Math.sin(inDir) * 340}
-        className="dim-line"
-      />
-
-      <AngleArc
-        centre={hit}
-        fromAngleDeg={(normalAngle * 180) / Math.PI + 180}
-        toAngleDeg={(inDir * 180) / Math.PI + 180}
-        radius={48}
-        label={`i = ${m.i.toFixed(1)}°`}
-      />
+      <AngleArc centre={hit} fromAngleDeg={normalOutDeg} toAngleDeg={inDeg + 180} radius={48} label={`i = ${m.i.toFixed(1)}°`} />
       <text x={apexPt.x} y={apexPt.y - 12} textAnchor="middle" fontSize={11} fill="#8fc7e8">
         A = {m.apex.toFixed(0)}°
       </text>
@@ -267,10 +333,41 @@ function Stage({ params, set, control }: StageApi) {
 
       <Knob spec={control('incidence', 'slider')} params={params} onChange={set} x={110} y={80} radius={20} label="Angle of incidence — turn the dial" />
       <Knob spec={control('apex', 'slider')} params={params} onChange={set} x={240} y={80} radius={18} label="Refracting angle of the prism — turn the dial" />
-      <Knob spec={control('lambda', 'slider')} params={params} onChange={set} x={700} y={80} radius={20} label="Wavelength of the light — turn the dial" />
+      <Knob spec={control('lambda', 'slider')} params={params} onChange={set} x={700} y={120} radius={20} label="Wavelength of the light — turn the dial" />
+      <StageSwitch spec={control('dispersion', 'toggle')} params={params} onChange={set} x={110} y={390} label="Show the full spectrum" states={{ on: 'ON', off: 'OFF' }} />
     </svg>
   );
 }
+
+/**
+ * Light packets along the construction. White light enters as one train of
+ * packets and splits at the first face; inside the glass each colour travels
+ * at c/n(λ), so violet visibly lags red — dispersion as a speed difference,
+ * which is what it is.
+ */
+const scene = makeRayScene({
+  glow: true,
+  speed: 170,
+  spacing: 62,
+  label: (params) => {
+    const g = prismGeometry(params);
+    return params.dispersion
+      ? `White light enters the prism at ${g.m.i.toFixed(1)} degrees and splits into ${g.lines.length} colours; violet travels slowest in the glass and is deviated most.`
+      : `Light of ${g.m.lambda} nanometre enters the prism at ${g.m.i.toFixed(1)} degrees, slows in the glass to c over ${g.m.n.toFixed(3)}, and is deviated by ${Number.isFinite(g.m.deviation) ? `${g.m.deviation.toFixed(1)} degrees` : 'total internal reflection'}.`;
+  },
+  rays: (params) => {
+    const g = prismGeometry(params);
+    const incident = chainRays([g.inStart, g.hit], [{ color: '#ffffff' }]);
+    const out: SceneRay[] = incident.rays.map((r) => ({ ...r, terminal: false }));
+    for (const line of g.lines) {
+      const points = line.out ? [line.inside.from, line.inside.to, line.out.to] : [line.inside.from, line.inside.to];
+      const segs = line.out ? [{ index: line.n, color: line.colour }, { index: 1, color: line.colour }] : [{ index: line.n, color: line.colour }];
+      out.push(...chainRays(points, segs, incident.opticalLength).rays);
+    }
+    return out;
+  },
+  disclosure: 'Light packets are a visual construct — inside the glass they slow to c/n and crowd to λ/n; the speed on screen is chosen to be readable.'
+});
 
 export default function PrismDispersionExperiment() {
   return (
@@ -278,6 +375,7 @@ export default function PrismDispersionExperiment() {
       definition={definition}
       education={education}
       compute={compute}
+      scene={scene}
       renderStage={(api) => <Stage {...api} />}
       viewportOverlay={(params) => {
         const m = model(params);

@@ -9,7 +9,7 @@ import { coulombForce, potentialEnergyPair, electricFieldPointCharge } from '@/p
 import { mergeIssues, validateRange } from '@/physics-engine/validation';
 import { formatSI } from '@/utils/format';
 import { col, num, ro, bool, singleSeriesGraph } from './_shared';
-import { DragX, type StageApi } from '@/components/controls/StageKit';
+import { DragX, Knob, type StageApi } from '@/components/controls/StageKit';
 import { makeFieldScene } from '@/lab/scenes/field';
 
 import { meta } from './coulombs-law.meta';
@@ -278,10 +278,10 @@ function Stage({ params, set, control }: StageApi) {
 
 
       <g>
-        <line x1={x1} y1={AXIS_Y + 82} x2={x2} y2={AXIS_Y + 82} className="dim-line" />
-        <line x1={x1} y1={AXIS_Y + 74} x2={x1} y2={AXIS_Y + 90} className="dim-line" />
-        <line x1={x2} y1={AXIS_Y + 74} x2={x2} y2={AXIS_Y + 90} className="dim-line" />
-        <text x={400} y={AXIS_Y + 104} textAnchor="middle" className="measure-text">
+        <line x1={x1} y1={AXIS_Y + 104} x2={x2} y2={AXIS_Y + 104} className="dim-line" />
+        <line x1={x1} y1={AXIS_Y + 96} x2={x1} y2={AXIS_Y + 112} className="dim-line" />
+        <line x1={x2} y1={AXIS_Y + 96} x2={x2} y2={AXIS_Y + 112} className="dim-line" />
+        <text x={400} y={AXIS_Y + 126} textAnchor="middle" className="measure-text">
           r = {rCm.toFixed(1)} cm
         </text>
       </g>
@@ -306,8 +306,8 @@ function Stage({ params, set, control }: StageApi) {
             width={2.6}
           />
           <text
-            x={x1}
-            y={AXIS_Y + 44}
+            x={x1 - dir * (radius + 6 + arrowLen / 2)}
+            y={AXIS_Y - 12}
             textAnchor="middle"
             className="measure-text"
             fill="#ff97a4"
@@ -315,8 +315,8 @@ function Stage({ params, set, control }: StageApi) {
             F = {formatSI(mag, 3)} N
           </text>
           <text
-            x={x2}
-            y={AXIS_Y + 44}
+            x={x2 + dir * (radius + 6 + arrowLen / 2)}
+            y={AXIS_Y - 12}
             textAnchor="middle"
             className="measure-text"
             fill="#ff97a4"
@@ -336,16 +336,35 @@ function Stage({ params, set, control }: StageApi) {
       <text x={400} y={84} textAnchor="middle" fontSize={11} fill="#8497ad" fontFamily="ui-monospace, monospace">
         κ = {kappa.toFixed(1)} · k/κ = {formatSI(CONSTANTS.K_E / kappa, 3)} N m² C⁻²
       </text>
-      {/* The separation is set by dragging q₂ away from q₁ along the line of centres. */}
+      {/* The separation is set by dragging q₂ itself: the handle sits under it. */}
       <DragX
         spec={control('r', 'slider')}
         params={params}
         onChange={(key, value) => set(key, value)}
-        x={140}
-        y={AXIS_Y + 48}
-        length={520}
-        mapping={{ toValue: (dx) => 2 + (dx / 520) * 98, invert: (cm) => 140 + ((cm - 2) / 98) * 520 }}
+        x={440}
+        y={AXIS_Y + 58}
+        length={160}
+        mapping={{ toValue: (dx) => dx / 2, invert: (cm) => benchGeometry({ ...params, r: cm }).x2 }}
         label="Separation r — drag q₂ along the line"
+      />
+      {/* Each charge is set at its own supply. */}
+      <Knob
+        spec={control('q1', 'slider')}
+        params={params}
+        onChange={(key, value) => set(key, value)}
+        x={90}
+        y={412}
+        radius={18}
+        label="Charge q₁"
+      />
+      <Knob
+        spec={control('q2', 'slider')}
+        params={params}
+        onChange={(key, value) => set(key, value)}
+        x={710}
+        y={412}
+        radius={18}
+        label="Charge q₂"
       />
         </svg>
   );

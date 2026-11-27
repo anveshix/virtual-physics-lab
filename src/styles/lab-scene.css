@@ -410,6 +410,9 @@ button.view-pill { font: inherit; cursor: pointer; }
 
 .segment-cell { fill: var(--surface-3); stroke: var(--line-2); stroke-width: 1; }
 .segment-cell.is-active { fill: var(--primary); stroke: var(--primary); }
+/* The chosen segment's caption sits on a cyan cell, so it takes the dark ink —
+   cyan-on-cyan made the selected medium the one option nobody could read. */
+.segment-cell.is-active ~ text { fill: var(--primary-ink); font-weight: 700; }
 .stage-segmented [role='radio'] { cursor: pointer; }
 .stage-segmented [role='radio']:focus-visible .segment-cell { stroke: var(--accent); stroke-width: 2; }
 

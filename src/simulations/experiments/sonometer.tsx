@@ -11,7 +11,7 @@ import {
 } from '@/physics-engine/waves-acoustics';
 import { mergeIssues, validatePositive, validateRange } from '@/physics-engine/validation';
 import { col, num, ro, singleSeriesGraph } from './_shared';
-import { DragX, Knob, type StageApi } from '@/components/controls/StageKit';
+import { DragX, Knob, StageSwitch, type StageApi } from '@/components/controls/StageKit';
 import { makeStandingWaveScene } from '@/lab/scenes/standing-wave';
 
 import { meta } from './sonometer.meta';
@@ -247,6 +247,7 @@ function Stage({ params, set, control }: StageApi) {
 
       <Knob spec={control('mass', 'slider')} params={params} onChange={set} x={150} y={62} radius={20} label="Load in the hanger — turn the dial" />
       <Knob spec={control('dia', 'slider')} params={params} onChange={set} x={300} y={62} radius={18} label="Wire diameter from the screw gauge — turn the dial" />
+      <StageSwitch spec={control('magnet', 'toggle')} params={params} onChange={set} x={470} y={62} label="Electromagnet" states={{ on: 'ENERGISED', off: 'OFF' }} />
       {/* The movable bridge is the control: drag it until the rider flies off. */}
       <DragX
         spec={control('length', 'slider')}

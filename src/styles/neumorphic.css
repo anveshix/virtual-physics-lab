@@ -291,6 +291,12 @@
   font-weight: 700;
 }
 .lab-neu .readout i { color: var(--neu-muted); font-weight: 600; }
+/* Readouts pinned over the dark stage keep the lit-LED ink. The navy above is
+   for wells in the light case; on the stage's dark LCD well it vanished. */
+.lab-neu .viewport .readout {
+  color: var(--lcd-ink, #ffc65c);
+  text-shadow: 0 0 8px rgba(255, 180, 84, 0.35);
+}
 .lab-neu .readout-sub { color: var(--neu-muted); }
 .lab-neu .readout-cell.tone-alert .readout { color: #c53030; }
 .lab-neu .readout-cell.tone-neg .readout { color: #2b6cb0; }

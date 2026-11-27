@@ -70,7 +70,8 @@ Four rules, each learned from a bug rather than assumed:
 | Family | Module | Drives from |
 |---|---|---|
 | electrostatic field | `scenes/field.ts` | superposition Σ kq r̂/r² over the real charges |
-| optical rays | `scenes/rays.ts` | the experiment's own `BenchRay[]` construction |
+| optical rays | `scenes/rays.ts` | the experiment's own ray construction; `chainRays` keeps one optical clock across media, so packets crowd to λ/n in glass, and each ray's `weight` (Fresnel, or the power left in a fibre) sets its brightness |
+| diffraction | `scenes/diffraction.ts` | the model's `intensityAt` on the screen: Huygens wavelets at each source, far-field arcs lit only where the screen is bright; incoherent mode scrambles the wavelet phases |
 | circuit carriers | `scenes/circuit.ts` | the MNA solution's per-branch current |
 | axial magnetic field | `scenes/axial-field.ts` | the model's `B(x)` on the axis |
 | standing wave | `scenes/standing-wave.ts` | the model's amplitude, mode and frequency |
@@ -78,12 +79,22 @@ Four rules, each learned from a bug rather than assumed:
 ## Coverage
 
 All 49 experiments have the neumorphic case, the LED readouts, the notebook and
-the live graph. Twelve have a bespoke canvas scene:
+the live graph. Eighteen have a bespoke canvas scene:
 
 `coulombs-law` · `electric-field-charges` · `convex-lens` · `concave-lens` ·
 `concave-mirror` · `convex-mirror` · `ohms-law` · `iv-characteristic` ·
 `galvanometer-half-deflection` · `helmholtz-coil` · `anti-helmholtz-coil` ·
-`sonometer`
+`sonometer` · `prism-dispersion` · `reflection-refraction` ·
+`total-internal-reflection` · `glass-slab` · `wave-optics` ·
+`single-slit-diffraction`
+
+The cyclotron animates in SVG instead: its spiral is `cyclotronOrbit`, a pure
+function (radii ∝ √crossings, every half-turn the same duration) drawn with a
+dash offset, so the path costs nothing per frame.
+
+`CanvasStage` stops its loop when the stage scrolls off screen or the tab is
+hidden (IntersectionObserver plus `visibilitychange`), so a long page of
+simulators only animates the one being looked at.
 
 The rest keep their SVG apparatus, which is already model-driven, and several
 already animate through the existing rAF-without-re-render pattern. A scene is
@@ -98,6 +109,12 @@ Compiling is not evidence. Load the route in Chromium and check four things:
 - its box matches the SVG's box (width **and** height);
 - `pointer-events` is `none`, so controls underneath still work;
 - **actual pixel data** changes between two samples.
+
+A control flagged `onStage`, or given a `stage` placement, is left out of the
+dock. Every on-stage control carries `data-control={key}`, and the simulator
+suite fails if any such control is missing from the apparatus. Eleven controls
+had shipped unreachable: seven toggles, plus the photoelectric collector
+potential, the cyclotron dee radius and both of Coulomb's charges.
 
 That last one matters: comparing `toDataURL().length` can match by coincidence,
 and did — it reported an animating scene as static and a static one as fine.

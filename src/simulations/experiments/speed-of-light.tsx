@@ -225,7 +225,7 @@ function Stage({ params, set, control }: StageApi) {
       <Knob spec={control('rpm', 'slider')} params={params} onChange={set} x={330} y={388} radius={20} label="Rotation rate of the mirror — turn the dial" />
       <Knob spec={control('distance', 'slider')} params={params} onChange={set} x={470} y={388} radius={20} label="Distance to the distant mirror — turn the dial" />
       <Knob spec={control('lever', 'slider')} params={params} onChange={set} x={610} y={388} radius={19} label="Optical lever arm — turn the dial" />
-      <StageSwitch spec={control('spin', 'toggle')} params={params} onChange={set} x={730} y={388} label="Motor" />
+      <StageSwitch spec={control('spin', 'toggle')} states={{ on: 'RUNNING', off: 'STOPPED' }} params={params} onChange={set} x={730} y={388} label="Motor" />
     </svg>
   );
 }

@@ -203,6 +203,15 @@ function Stage({ params, set, control }: StageApi) {
         radius={18}
         label="Intensity of the source"
       />
+      <Knob
+        spec={control('v', 'slider')}
+        params={params}
+        onChange={(key, value) => set(key, value)}
+        x={560}
+        y={428}
+        radius={18}
+        label="Collector potential — turn the rheostat"
+      />
         </svg>
   );
 }

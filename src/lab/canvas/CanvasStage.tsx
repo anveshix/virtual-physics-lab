@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { useRenderLoop, type Frame } from './useRenderLoop';
 
 export interface CanvasPainter {
@@ -94,6 +94,12 @@ export function CanvasStage({
     return () => ro.disconnect();
   }, [measure]);
 
+  // A canvas nobody can see should not be painting: scrolled out of view, or in
+  // a background tab, the loop stops and the next frame on return is drawn
+  // from the live params as usual. Browsers without IntersectionObserver (and
+  // jsdom) simply keep the loop running.
+  const onScreen = useOnScreen(canvasRef);
+
   useRenderLoop(
     (frame) => {
       const ctx = ctxRef.current;
@@ -123,7 +129,7 @@ export function CanvasStage({
         ctx.restore();
       }
     },
-    { active: !paused }
+    { active: !paused && onScreen }
   );
 
   return (
@@ -135,4 +141,38 @@ export function CanvasStage({
       aria-label={label}
     />
   );
+}
+
+/**
+ * True while the element is at least partly in the viewport and the page is
+ * visible. Starts true, so the first frame is always painted.
+ */
+function useOnScreen(ref: RefObject<Element>): boolean {
+  const [inView, setInView] = useState(true);
+  const [pageVisible, setPageVisible] = useState(
+    typeof document === 'undefined' || document.visibilityState !== 'hidden'
+  );
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver !== 'function') return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[entries.length - 1];
+        if (entry) setInView(entry.isIntersecting);
+      },
+      { rootMargin: '80px' }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const onChange = () => setPageVisible(document.visibilityState !== 'hidden');
+    document.addEventListener('visibilitychange', onChange);
+    return () => document.removeEventListener('visibilitychange', onChange);
+  }, []);
+
+  return inView && pageVisible;
 }

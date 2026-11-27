@@ -7,6 +7,7 @@ import { traceSlab } from '@/physics-engine/optics';
 import { degToRad } from '@/physics-engine/units';
 import { col, num, ro, singleSeriesGraph } from './_shared';
 import { Knob, type StageApi } from '@/components/controls/StageKit';
+import { chainRays, makeRayScene } from '@/lab/scenes/rays';
 
 import { meta } from './glass-slab.meta';
 
@@ -60,8 +61,6 @@ const education: EducationPack = {
   resultTemplate: 'The measured lateral shift agrees with d = t sin(i − r)/cos r, and the refractive index obtained from sin i / sin r matches the glass used.'
 };
 
-const SCALE = 110;
-
 function compute(params: ParamValues): ModelOutput {
   const i = num(params, 'i', 45);
   const t = num(params, 't', 1.5);
@@ -88,54 +87,108 @@ function compute(params: ParamValues): ModelOutput {
   };
 }
 
-function Stage({ params, set, control }: StageApi) {
+/** Stage pixels per centimetre of glass — the 4 cm slab fills the bench. */
+const PX_PER_CM = 50;
+
+type Pt = { x: number; y: number };
+
+/**
+ * The slab construction in stage coordinates (y down), from the same
+ * `traceSlab` the readouts use — so the shift drawn is the shift computed.
+ *
+ * Light arrives from the upper left, meets the top face at P, crosses the
+ * glass at the refraction angle r and leaves the bottom face at E travelling
+ * parallel to where it started. The lateral shift d is the perpendicular gap
+ * between the emergent ray and the undeviated continuation of the incident one.
+ */
+function slabGeometry(params: ParamValues) {
   const i = num(params, 'i', 45);
   const t = num(params, 't', 1.5);
   const n = num(params, 'n', 1.52);
-  const thicknessPx = t * SCALE;
-  const x0 = 300;
-  const y0 = 100;
   const trace = traceSlab(t / 100, i, n);
-  const toPx = (p: { x: number; y: number }) => ({ x: x0 + p.x * SCALE, y: y0 - p.y * SCALE });
-  const shiftPx = trace.shift * SCALE;
+  const r = Number.isFinite(trace.refractedDeg) ? trace.refractedDeg : 0;
+  const iRad = degToRad(i);
+  const rRad = degToRad(r);
+
+  const top = 170;
+  const tPx = t * PX_PER_CM;
+  const slab = { x: 190, y: top, w: 460, h: tPx };
+  const P: Pt = { x: 330, y: top };
+  const u: Pt = { x: Math.sin(iRad), y: Math.cos(iRad) }; // incident direction
+  const E: Pt = { x: P.x + tPx * Math.tan(rRad), y: top + tPx };
+  const lead = 150;
+  const inStart: Pt = { x: P.x - u.x * lead, y: P.y - u.y * lead };
+  const outEnd: Pt = { x: E.x + u.x * 120, y: E.y + u.y * 120 };
+  const undeviatedEnd: Pt = { x: P.x + u.x * (tPx / Math.max(u.y, 0.2) + 120), y: P.y + u.y * (tPx / Math.max(u.y, 0.2) + 120) };
+  // Foot of the perpendicular from E onto the undeviated line.
+  const along = (E.x - P.x) * u.x + (E.y - P.y) * u.y;
+  const foot: Pt = { x: P.x + u.x * along, y: P.y + u.y * along };
+
+  return { i, t, n, r, shiftCm: trace.shift * 100, slab, P, E, inStart, outEnd, undeviatedEnd, foot, tPx };
+}
+
+function Stage({ params, set, control }: StageApi) {
+  const g = slabGeometry(params);
+  const { i, t, n, r, slab, P, E, inStart, outEnd, undeviatedEnd, foot } = g;
+  const shiftPx = Math.hypot(E.x - foot.x, E.y - foot.y);
 
   return (
     <svg viewBox="0 0 820 470" className="svg-lab" preserveAspectRatio="xMidYMid meet">
       <SvgDefs />
-      <rect x={x0} y={y0 - thicknessPx} width={300} height={thicknessPx} fill="url(#lab-glass)" stroke="#8fc7e8" strokeWidth={1.2} />
-      <line x1={x0 - 90} y1={y0} x2={x0 + 390} y2={y0} className="dim-line" opacity={0.4} />
-      <line x1={x0} y1={y0 - thicknessPx - 70} x2={x0} y2={y0 + 70} className="normal-line" />
-      <line x1={x0 + thicknessPx * Math.tan(degToRad(trace.refractedDeg))} y1={y0 - thicknessPx - 70} x2={x0 + thicknessPx * Math.tan(degToRad(trace.refractedDeg))} y2={y0 + 70} className="normal-line" />
-      {trace.rays.map((r, k) => (
-        <Ray
-          key={k}
-          from={toPx({ x: r.from.x, y: -r.from.y + 0 })}
-          to={toPx({ x: r.to.x, y: -r.to.y })}
-          color={r.kind === 'refracted' ? '#6ee7ff' : '#ffd257'}
-        />
-      ))}
-      <line x1={x0 - 20} y1={y0} x2={x0 - 20} y2={y0 - thicknessPx} className="dim-line" />
-      <text x={x0 - 26} y={y0 - thicknessPx / 2} textAnchor="end" fontSize={10} className="measure-text">
+      <text x={410} y={40} textAnchor="middle" fontSize={13} fill="#eaf1f8" fontWeight={600}>
+        Rectangular glass slab · n = {n.toFixed(2)} · t = {t.toFixed(1)} cm
+      </text>
+      <text x={410} y={60} textAnchor="middle" fontSize={11} fill="#8497ad" fontFamily="ui-monospace, monospace">
+        the emergent ray is parallel to the incident ray, shifted sideways by d
+      </text>
+
+      <rect x={slab.x} y={slab.y} width={slab.w} height={slab.h} fill="url(#lab-glass)" stroke="#8fc7e8" strokeWidth={1.2} />
+      <text x={slab.x + slab.w - 8} y={slab.y + 16} textAnchor="end" fontSize={10} fill="#8fc7e8">glass · n = {n.toFixed(2)}</text>
+      <text x={slab.x + 8} y={slab.y - 8} fontSize={10} fill="#8497ad">air · n = 1</text>
+
+      {/* Normals at the two points where the ray crosses a face. */}
+      <line x1={P.x} y1={P.y - 70} x2={P.x} y2={P.y + 60} className="normal-line" />
+      <line x1={E.x} y1={E.y - 60} x2={E.x} y2={E.y + 70} className="normal-line" />
+
+      {/* Where the light would have gone without the glass. */}
+      <line x1={P.x} y1={P.y} x2={undeviatedEnd.x} y2={undeviatedEnd.y} className="dim-line" />
+
+      <Ray from={inStart} to={P} color="#ffd257" width={2} />
+      <Ray from={P} to={E} color="#6ee7ff" width={2} />
+      <Ray from={E} to={outEnd} color="#ffd257" width={2} />
+
+      {/* Thickness caliper. */}
+      <line x1={slab.x - 18} y1={slab.y} x2={slab.x - 18} y2={slab.y + slab.h} stroke="#8497ad" strokeWidth={1.2} />
+      <line x1={slab.x - 24} y1={slab.y} x2={slab.x - 12} y2={slab.y} stroke="#8497ad" strokeWidth={1.2} />
+      <line x1={slab.x - 24} y1={slab.y + slab.h} x2={slab.x - 12} y2={slab.y + slab.h} stroke="#8497ad" strokeWidth={1.2} />
+      <text x={slab.x - 28} y={slab.y + slab.h / 2 + 4} textAnchor="end" fontSize={10} className="measure-text">
         t = {t.toFixed(1)} cm
       </text>
-      <line x1={x0 + 250} y1={y0} x2={x0 + 250} y2={y0 + shiftPx} stroke="#ff6b7d" strokeWidth={1.6} strokeDasharray="4 3" />
-      <text x={x0 + 258} y={y0 + shiftPx / 2 + 4} fontSize={11} fill="#ff6b7d">
-        d = {shiftPx > 0 ? `${(trace.shift * 100).toFixed(2)} cm` : '0'}
+
+      {/* The lateral shift, drawn as the perpendicular it is. */}
+      {shiftPx > 1.5 ? (
+        <g>
+          <line x1={E.x} y1={E.y} x2={foot.x} y2={foot.y} stroke="#ff6b7d" strokeWidth={1.6} strokeDasharray="4 3" />
+          <text x={Math.max(E.x, foot.x) + 10} y={(E.y + foot.y) / 2 + 4} fontSize={11} fill="#ff6b7d">
+            d = {g.shiftCm.toFixed(2)} cm
+          </text>
+        </g>
+      ) : null}
+
+      <AngleArc centre={P} fromAngleDeg={-90} toAngleDeg={-90 - i} radius={50} label={`i = ${i.toFixed(1)}°`} />
+      {r > 0.5 ? <AngleArc centre={P} fromAngleDeg={90} toAngleDeg={90 - r} radius={44} label={`r = ${r.toFixed(1)}°`} color="#6ee7ff" /> : null}
+      <AngleArc centre={E} fromAngleDeg={90} toAngleDeg={90 - i} radius={46} label={`e = ${i.toFixed(1)}°`} />
+
+      <text x={560} y={420} textAnchor="middle" fontSize={10.5} fill="#5e7189">
+        d = t sin(i − r)/cos r = {g.shiftCm.toFixed(3)} cm
       </text>
-      <AngleArc centre={{ x: x0, y: y0 }} fromAngleDeg={-90} toAngleDeg={-90 + i} radius={52} label={`i = ${i.toFixed(1)}°`} />
-      <AngleArc centre={{ x: x0, y: y0 }} fromAngleDeg={90} toAngleDeg={90 - trace.refractedDeg} radius={70} label={`r = ${trace.refractedDeg.toFixed(1)}°`} color="#6ee7ff" />
-      <text x={410} y={44} textAnchor="middle" fontSize={13} fill="#eaf1f8" fontWeight={600}>
-        Rectangular glass slab · n = {n.toFixed(2)}
-      </text>
-      <text x={410} y={63} textAnchor="middle" fontSize={11} fill="#8497ad" fontFamily="ui-monospace, monospace">
-        emergent ray is parallel to the incident ray
-      </text>
+
       <Knob
         spec={control('i', 'slider')}
         params={params}
         onChange={(key, value) => set(key, value)}
         x={120}
-        y={428}
+        y={404}
         radius={18}
         label="Angle of incidence i — turn the ray table"
       />
@@ -144,18 +197,41 @@ function Stage({ params, set, control }: StageApi) {
         params={params}
         onChange={(key, value) => set(key, value)}
         x={250}
-        y={428}
+        y={404}
         radius={18}
         label="Slab thickness t"
       />
-        </svg>
+    </svg>
   );
 }
+
+/** Packets slow to c/n inside the glass and leave at their original speed. */
+const scene = makeRayScene({
+  glow: true,
+  speed: 150,
+  spacing: 54,
+  label: (params) => {
+    const g = slabGeometry(params);
+    return `Light enters the slab at ${g.i.toFixed(1)} degrees, slows to c over ${g.n.toFixed(2)} inside, and leaves parallel to its original path, shifted by ${g.shiftCm.toFixed(2)} centimetre.`;
+  },
+  rays: (params) => {
+    const g = slabGeometry(params);
+    return chainRays(
+      [g.inStart, g.P, g.E, g.outEnd],
+      [
+        { index: 1, color: '#ffd257' },
+        { index: g.n, color: '#6ee7ff' },
+        { index: 1, color: '#ffd257' }
+      ]
+    ).rays;
+  },
+  disclosure: 'Light packets are a visual construct — inside the glass they slow to c/n and crowd to λ/n; the speed on screen is chosen to be readable.'
+});
 
 export default function GlassSlabExperiment() {
   return (
     <PhysicsExperiment
-      definition={definition} education={education} compute={compute}
+      definition={definition} education={education} compute={compute} scene={scene}
       renderStage={(api) => <Stage {...api} />}
       notebook={({ params: p }) => {
         const i = num(p, 'i', 45);

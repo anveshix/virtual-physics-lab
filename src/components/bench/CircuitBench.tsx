@@ -20,6 +20,8 @@ export interface CircuitBenchProps {
   children?: ReactNode;
   /** True while any part of the circuit is carrying current. */
   live: boolean;
+  /** The parameter the leads are stored in; the terminals are its control. */
+  wiringKey?: string;
 }
 
 const VIEW_W = 820;
@@ -45,7 +47,8 @@ export function CircuitBench({
   title,
   subtitle,
   children,
-  live
+  live,
+  wiringKey = 'wiring'
 }: CircuitBenchProps) {
   const byId = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
 
@@ -100,7 +103,7 @@ export function CircuitBench({
         ))}
       </g>
 
-      <g className="bench-terminals">
+      <g className="bench-terminals" data-control={wiringKey}>
         {parts.flatMap((p) =>
           (['a', 'b'] as const).map((name) => {
             const id = terminal(p.id, name);

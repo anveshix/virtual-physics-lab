@@ -162,6 +162,38 @@ export function particle(
 }
 
 /**
+ * A moving body with a soft halo — a light packet, an emitted photon.
+ *
+ * The halo is one translucent disc under the core rather than a radial
+ * gradient: a gradient per packet per frame is the single most expensive
+ * thing a 2D context can be asked for, and at sixty packets it shows.
+ */
+export function glowParticle(
+  ctx: CanvasRenderingContext2D,
+  at: Vec2,
+  radius = 2.6,
+  color = INK.ray,
+  alpha = 1,
+  halo = 2.6
+): void {
+  if (!Number.isFinite(at.x) || !Number.isFinite(at.y) || alpha <= 0) return;
+  ctx.save();
+  if (halo > 1) {
+    ctx.globalAlpha = alpha * 0.22;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(at.x, at.y, radius * halo, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
  * The path a body has taken, fading towards the oldest point.
  *
  * Drawn as one gradient-free pass of short segments: a trail is the cheapest

@@ -238,7 +238,7 @@ function Stage({ params, set, control }: StageApi) {
       <Knob spec={control('fo', 'slider')} params={params} onChange={set} x={110} y={92} radius={20} label="Focal length of the objective — turn the dial" />
       <Knob spec={control('fe', 'slider')} params={params} onChange={set} x={240} y={92} radius={19} label="Focal length of the eyepiece — turn the dial" />
       <Knob spec={control('alpha', 'slider')} params={params} onChange={set} x={580} y={92} radius={19} label="Angle subtended by the object — turn the dial" />
-      <StageSwitch spec={control('nearPoint', 'toggle')} params={params} onChange={set} x={710} y={92} label="Near point" />
+      <StageSwitch spec={control('nearPoint', 'toggle')} states={{ on: 'ON', off: 'OFF' }} params={params} onChange={set} x={710} y={92} label="Near point" />
     </svg>
   );
 }

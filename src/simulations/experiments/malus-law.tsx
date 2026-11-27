@@ -144,7 +144,7 @@ function Stage({ params, set, control }: StageApi) {
         label="Analyser angle θ — turn the analyser"
       />
       <StageSwitch
-        spec={control('unpolarised', 'toggle')}
+        spec={control('unpolarised', 'toggle')} states={{ on: 'ON', off: 'OFF' }}
         params={params}
         onChange={(key, value) => set(key, value)}
         x={140}

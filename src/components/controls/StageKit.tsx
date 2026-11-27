@@ -191,6 +191,7 @@ export function Knob({ spec, params, onChange, x, y, radius = 20, label }: KnobP
       role="slider"
       tabIndex={disabled ? -1 : 0}
       aria-label={label ?? `${spec.label}${spec.unit ? ` in ${spec.unit}` : ''}`}
+      data-control={spec.key}
       aria-valuemin={spec.min}
       aria-valuemax={spec.max}
       aria-valuenow={value}
@@ -250,10 +251,15 @@ function describeArc(cx: number, cy: number, r: number, from: number, to: number
 export interface StageSwitchProps extends HandleProps<ToggleControl> {
   x: number;
   y: number;
+  /**
+   * The words under the switch. A plug key in a circuit is CLOSED or OPEN; a
+   * display option ("show the spectrum") is ON or OFF.
+   */
+  states?: { on: string; off: string };
 }
 
 /** A plug key on the board: `role="switch"`, Space/Enter to throw it. */
-export function StageSwitch({ spec, params, onChange, x, y, label }: StageSwitchProps) {
+export function StageSwitch({ spec, params, onChange, x, y, label, states = { on: 'CLOSED', off: 'OPEN' } }: StageSwitchProps) {
   const on = Boolean(params[spec.key] ?? spec.initial);
   const disabled = spec.disabledIf?.(params) ?? false;
   const toggle = () => {
@@ -266,6 +272,7 @@ export function StageSwitch({ spec, params, onChange, x, y, label }: StageSwitch
       role="switch"
       tabIndex={disabled ? -1 : 0}
       aria-label={label ?? spec.label}
+      data-control={spec.key}
       aria-checked={on}
       aria-disabled={disabled || undefined}
       onClick={toggle}
@@ -281,7 +288,7 @@ export function StageSwitch({ spec, params, onChange, x, y, label }: StageSwitch
       <rect x={-20} y={-10} width={40} height={20} rx={10} className="switch-track" />
       <circle cx={on ? 10 : -10} cy={0} r={7.5} className="switch-thumb stage-pin" />
       <text y={24} textAnchor="middle" className="stage-ctl-value">
-        {on ? 'CLOSED' : 'OPEN'}
+        {on ? states.on : states.off}
       </text>
       <text y={-18} textAnchor="middle" className="stage-ctl-label">
         {spec.label}
@@ -329,6 +336,7 @@ export function StageSegmented({
       className={`stage-ctl stage-segmented${disabled ? ' is-disabled' : ''}`}
       role="radiogroup"
       aria-label={label ?? spec.label}
+      data-control={spec.key}
       transform={`translate(${x - total / 2} ${y})`}
     >
       <text x={total / 2} y={-14} textAnchor="middle" className="stage-ctl-label">
@@ -421,6 +429,7 @@ export function DragX({ spec, params, onChange, x, y, length, mapping, label }: 
       role="slider"
       tabIndex={disabled ? -1 : 0}
       aria-label={label ?? spec.label}
+      data-control={spec.key}
       aria-valuemin={spec.min}
       aria-valuemax={spec.max}
       aria-valuenow={value}
@@ -482,6 +491,7 @@ export function DragY({ spec, params, onChange, x, y, height, mapping, label }: 
       role="slider"
       tabIndex={disabled ? -1 : 0}
       aria-label={label ?? spec.label}
+      data-control={spec.key}
       aria-valuemin={spec.min}
       aria-valuemax={spec.max}
       aria-valuenow={value}
